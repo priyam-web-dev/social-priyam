@@ -1,18 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabasePublishableKey =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL =
+  "https://tcluebvacjhcdywdmtqa.supabase.co";
 
-if (!supabaseUrl || !supabasePublishableKey) {
-  throw new Error(
-    "Supabase environment variables are missing. Check your .env file."
-  );
-}
+const SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_SPdTiknRhamZHnquWCISDQ_M_IW1ZSX";
+
 
 export const supabase = createClient(
-  supabaseUrl,
-  supabasePublishableKey,
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
       persistSession: true,

@@ -22,11 +22,10 @@ import Explore from "./pages/Explore";
 import Messages from "./pages/Messages";
 import BasicPage from "./pages/BasicPage";
 
-import { supabase } from "./lib/supabase";
+import { useAuth } from "./context/AuthContext";
 
 
 function AppShell({ user, onLogout }) {
-
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,16 +46,12 @@ function AppShell({ user, onLogout }) {
 
 
   useEffect(() => {
-
     setCreateOpen(false);
-
   }, [location.pathname]);
 
 
   useEffect(() => {
-
     function handleKeyboard(event) {
-
       const modifier =
         event.metaKey || event.ctrlKey;
 
@@ -65,20 +60,14 @@ function AppShell({ user, onLogout }) {
         modifier &&
         event.key.toLowerCase() === "k"
       ) {
-
         event.preventDefault();
-
         navigate("/explore");
-
       }
 
 
       if (event.key === "Escape") {
-
         setCreateOpen(false);
-
       }
-
     }
 
 
@@ -89,35 +78,26 @@ function AppShell({ user, onLogout }) {
 
 
     return () => {
-
       window.removeEventListener(
         "keydown",
         handleKeyboard
       );
-
     };
-
   }, [navigate]);
 
 
   function openCreate() {
-
     setCreateOpen(true);
-
   }
 
 
   function closeCreate() {
-
     setCreateOpen(false);
-
   }
 
 
   return (
-
     <div className="app-shell">
-
 
       <header className="topbar">
 
@@ -127,18 +107,15 @@ function AppShell({ user, onLogout }) {
           onClick={() => navigate("/")}
           aria-label="Go home"
         >
-
           <b>S</b>
 
           <span>
             social
           </span>
-
         </button>
 
 
         <div className="topbar-actions">
-
 
           <button
             type="button"
@@ -146,10 +123,7 @@ function AppShell({ user, onLogout }) {
             onClick={() => navigate("/explore")}
             aria-label="Search"
           >
-
-            <span>
-              ⌕
-            </span>
+            <span>⌕</span>
 
             <span className="search-label">
               Search
@@ -158,7 +132,6 @@ function AppShell({ user, onLogout }) {
             <kbd>
               ⌘ K
             </kbd>
-
           </button>
 
 
@@ -171,7 +144,6 @@ function AppShell({ user, onLogout }) {
             onClick={() => navigate("/profile")}
             aria-label="Open profile"
           >
-
             <Avatar
               name={displayName}
               size="sm"
@@ -180,9 +152,7 @@ function AppShell({ user, onLogout }) {
             <span>
               {displayName}
             </span>
-
           </button>
-
 
         </div>
 
@@ -191,33 +161,25 @@ function AppShell({ user, onLogout }) {
 
       <div className="page-grid">
 
-
         <aside className="sidebar">
-
 
           <nav
             className="side-nav"
             aria-label="Main navigation"
           >
-
             {navigation.map((item) => (
-
               <NavLink
                 key={item.label}
                 to={item.path}
                 end={item.path === "/"}
               >
-
                 <span>
                   {item.icon}
                 </span>
 
                 {item.label}
-
               </NavLink>
-
             ))}
-
           </nav>
 
 
@@ -226,9 +188,7 @@ function AppShell({ user, onLogout }) {
             className="create-button"
             onClick={openCreate}
           >
-
             + Create
-
           </button>
 
 
@@ -237,14 +197,11 @@ function AppShell({ user, onLogout }) {
             className="account-card"
             onClick={() => navigate("/profile")}
           >
-
             <Avatar
               name={displayName}
             />
 
-
             <span>
-
               <strong>
                 {displayName}
               </strong>
@@ -252,14 +209,11 @@ function AppShell({ user, onLogout }) {
               <small>
                 @{username}
               </small>
-
             </span>
-
 
             <b>
               ···
             </b>
-
           </button>
 
 
@@ -268,20 +222,15 @@ function AppShell({ user, onLogout }) {
             className="account-logout"
             onClick={onLogout}
           >
-
             Log out
-
           </button>
-
 
         </aside>
 
 
         <main className="main-column">
 
-
           <Routes>
-
 
             <Route
               path="/"
@@ -295,30 +244,24 @@ function AppShell({ user, onLogout }) {
 
             <Route
               path="/explore"
-              element={
-                <Explore />
-              }
+              element={<Explore />}
             />
 
 
             <Route
               path="/messages"
-              element={
-                <Messages />
-              }
+              element={<Messages />}
             />
 
 
             <Route
               path="/notifications"
               element={
-
                 <BasicPage
                   type="notifications"
                   title="Activity."
                   description="The things that happened while you were away."
                 />
-
               }
             />
 
@@ -326,13 +269,11 @@ function AppShell({ user, onLogout }) {
             <Route
               path="/profile"
               element={
-
                 <BasicPage
                   type="profile"
                   title={`${displayName}.`}
                   description={`@${username} · building things and figuring them out.`}
                 />
-
               }
             />
 
@@ -358,15 +299,12 @@ function AppShell({ user, onLogout }) {
               }
             />
 
-
           </Routes>
-
 
         </main>
 
 
         <RightRail />
-
 
       </div>
 
@@ -376,31 +314,24 @@ function AppShell({ user, onLogout }) {
         aria-label="Mobile navigation"
       >
 
-
         {navigation
           .slice(0, 4)
           .map((item) => (
-
             <NavLink
               key={item.label}
               to={item.path}
               end={item.path === "/"}
             >
-
               <span>
                 {item.icon}
               </span>
 
               <small>
-
                 {item.label === "Notifications"
                   ? "Alerts"
                   : item.label}
-
               </small>
-
             </NavLink>
-
           ))}
 
 
@@ -409,126 +340,57 @@ function AppShell({ user, onLogout }) {
           onClick={openCreate}
           aria-label="Create post"
         >
-
           +
-
         </button>
-
 
       </nav>
 
 
       {createOpen && (
-
         <CreateModal
           onClose={closeCreate}
         />
-
       )}
 
-
     </div>
-
   );
-
 }
-
 
 
 export default function App() {
 
-  const [session, setSession] =
-    useState(null);
-
-  const [authReady, setAuthReady] =
-    useState(false);
-
-
-  useEffect(() => {
-
-    let alive = true;
+  const {
+    user,
+    loading,
+    isAuthenticated,
+    signOut,
+  } = useAuth();
 
 
-    async function initializeAuth() {
-
-      const {
-        data: {
-          session: currentSession,
-        },
-      } = await supabase.auth.getSession();
-
-
-      if (alive) {
-
-        setSession(currentSession);
-
-        setAuthReady(true);
-
-      }
-
-    }
-
-
-    initializeAuth();
-
-
-    const {
-      data: {
-        subscription,
-      },
-    } =
-      supabase.auth.onAuthStateChange(
-        (_event, nextSession) => {
-
-          setSession(nextSession);
-
-          setAuthReady(true);
-
-        }
-      );
-
-
-    return () => {
-
-      alive = false;
-
-      subscription.unsubscribe();
-
-    };
-
-  }, []);
-
-
-  async function handleLogout() {
-
-    await supabase.auth.signOut();
-
-  }
-
-
-  if (!authReady) {
-
-    return null;
-
-  }
-
-
-  if (!session) {
-
+  if (loading) {
     return (
-      <AuthScreen />
-    );
+      <div className="auth-loading">
+        <div className="auth-loading-mark">
+          S
+        </div>
 
+        <span>
+          loading your space...
+        </span>
+      </div>
+    );
+  }
+
+
+  if (!isAuthenticated) {
+    return <AuthScreen />;
   }
 
 
   return (
-
     <AppShell
-      user={session.user}
-      onLogout={handleLogout}
+      user={user}
+      onLogout={signOut}
     />
-
   );
-
 }
