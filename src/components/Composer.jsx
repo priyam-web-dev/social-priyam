@@ -1,133 +1,92 @@
 import { useState } from "react";
-import Avatar from "./Avatar";
-import { useAuth } from "../context/AuthContext";
 
-function getDisplayName(user) {
-  return (
-    user?.user_metadata?.display_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split("@")[0] ||
-    "User"
-  );
-}
-
-export default function Composer({
-  onSubmit,
-  submitting = false,
-}) {
-  const { user } = useAuth();
-
+export default function Composer({ onSubmit }) {
   const [text, setText] = useState("");
   const [expanded, setExpanded] = useState(false);
-
-  const displayName = getDisplayName(user);
 
   function openComposer() {
     setExpanded(true);
   }
 
-  async function handleSubmit(event) {
+  function closeComposer() {
+    setText("");
+    setExpanded(false);
+  }
+
+  function handleSubmit(event) {
     event.preventDefault();
 
     const cleanText = text.trim();
 
-    if (!cleanText || submitting) {
+    if (!cleanText || !onSubmit) {
       return;
     }
 
-    await onSubmit(cleanText);
+    onSubmit(cleanText);
 
     setText("");
     setExpanded(false);
   }
 
-  function cancelComposer() {
-    if (submitting) {
-      return;
-    }
+  if (!expanded) {
+    return (
+      <section className="composer-inner">
+        <button
+          type="button"
+          className="composer-input"
+          onClick={openComposer}
+        >
+          What's on your mind?
+        </button>
 
-    setText("");
-    setExpanded(false);
+        <button
+          type="button"
+          className="composer-add"
+          onClick={openComposer}
+          aria-label="Create post"
+        >
+          +
+        </button>
+      </section>
+    );
   }
 
   return (
-    <section
-      className={
-        expanded
-          ? "composer composer-expanded"
-          : "composer"
-      }
+    <form
+      className="composer-form"
+      onSubmit={handleSubmit}
     >
-      <Avatar
-        name={displayName}
-        size="md"
+      <textarea
+        autoFocus
+        value={text}
+        onChange={(event) =>
+          setText(event.target.value)
+        }
+        placeholder="What's on your mind?"
+        maxLength={280}
       />
 
-      {!expanded ? (
-        <>
+      <div className="composer-footer">
+        <span>{text.length}/280</span>
+
+        <div>
           <button
             type="button"
-            className="composer-input"
-            onClick={openComposer}
+            className="composer-cancel"
+            onClick={closeComposer}
           >
-            What's on your mind?
+            Cancel
           </button>
 
           <button
-            type="button"
-            className="composer-add"
-            onClick={openComposer}
-            aria-label="Create post"
+            type="submit"
+            className="composer-post"
+            disabled={!text.trim()}
           >
-            +
+            Post
           </button>
-        </>
-      ) : (
-        <form
-          className="composer-form"
-          onSubmit={handleSubmit}
-        >
-          <textarea
-            autoFocus
-            value={text}
-            onChange={(event) =>
-              setText(event.target.value)
-            }
-            placeholder="What's on your mind?"
-            maxLength={280}
-            disabled={submitting}
-          />
-
-          <div className="composer-footer">
-            <span>
-              {text.length}/280
-            </span>
-
-            <div>
-              <button
-                type="button"
-                className="composer-cancel"
-                onClick={cancelComposer}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                className="composer-post"
-                disabled={
-                  !text.trim() || submitting
-                }
-              >
-                {submitting
-                  ? "Posting..."
-                  : "Post"}
-              </button>
-            </div>
-          </div>
-        </form>
-      )}
-    </section>
+        </div>
+      </div>
+    </form>
   );
 }
