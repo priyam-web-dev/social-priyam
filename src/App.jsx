@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   NavLink,
   Navigate,
@@ -14,77 +15,155 @@ import Avatar from "./components/Avatar";
 import ThemeButton from "./components/ThemeButton";
 import CreateModal from "./components/CreateModal";
 import RightRail from "./components/RightRail";
+import AuthScreen from "./components/AuthScreen";
 
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
 import Messages from "./pages/Messages";
 import BasicPage from "./pages/BasicPage";
 
-export default function App() {
+import { supabase } from "./lib/supabase";
+
+
+function AppShell({ user, onLogout }) {
+
   const navigate = useNavigate();
   const location = useLocation();
 
   const [createOpen, setCreateOpen] = useState(false);
 
+
+  const displayName =
+    user?.user_metadata?.display_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split("@")[0] ||
+    "User";
+
+
+  const username =
+    user?.user_metadata?.username ||
+    user?.email?.split("@")[0] ||
+    "user";
+
+
   useEffect(() => {
+
     setCreateOpen(false);
+
   }, [location.pathname]);
 
-  useEffect(() => {
-    function handleKeyboard(event) {
-      const modifier = event.metaKey || event.ctrlKey;
 
-      if (modifier && event.key.toLowerCase() === "k") {
+  useEffect(() => {
+
+    function handleKeyboard(event) {
+
+      const modifier =
+        event.metaKey || event.ctrlKey;
+
+
+      if (
+        modifier &&
+        event.key.toLowerCase() === "k"
+      ) {
+
         event.preventDefault();
+
         navigate("/explore");
+
       }
+
 
       if (event.key === "Escape") {
+
         setCreateOpen(false);
+
       }
+
     }
 
-    window.addEventListener("keydown", handleKeyboard);
+
+    window.addEventListener(
+      "keydown",
+      handleKeyboard
+    );
+
 
     return () => {
-      window.removeEventListener("keydown", handleKeyboard);
+
+      window.removeEventListener(
+        "keydown",
+        handleKeyboard
+      );
+
     };
+
   }, [navigate]);
 
+
   function openCreate() {
+
     setCreateOpen(true);
+
   }
+
 
   function closeCreate() {
+
     setCreateOpen(false);
+
   }
 
+
   return (
+
     <div className="app-shell">
+
+
       <header className="topbar">
+
         <button
           type="button"
           className="wordmark"
           onClick={() => navigate("/")}
           aria-label="Go home"
         >
+
           <b>S</b>
-          <span>social</span>
+
+          <span>
+            social
+          </span>
+
         </button>
 
+
         <div className="topbar-actions">
+
+
           <button
             type="button"
             className="search-trigger"
             onClick={() => navigate("/explore")}
             aria-label="Search"
           >
-            <span>⌕</span>
-            <span className="search-label">Search</span>
-            <kbd>⌘ K</kbd>
+
+            <span>
+              ⌕
+            </span>
+
+            <span className="search-label">
+              Search
+            </span>
+
+            <kbd>
+              ⌘ K
+            </kbd>
+
           </button>
 
+
           <ThemeButton />
+
 
           <button
             type="button"
@@ -92,135 +171,364 @@ export default function App() {
             onClick={() => navigate("/profile")}
             aria-label="Open profile"
           >
-            <Avatar name="Priyam" size="sm" />
-            <span>Priyam</span>
+
+            <Avatar
+              name={displayName}
+              size="sm"
+            />
+
+            <span>
+              {displayName}
+            </span>
+
           </button>
+
+
         </div>
+
       </header>
 
+
       <div className="page-grid">
+
+
         <aside className="sidebar">
-          <nav className="side-nav" aria-label="Main navigation">
+
+
+          <nav
+            className="side-nav"
+            aria-label="Main navigation"
+          >
+
             {navigation.map((item) => (
+
               <NavLink
                 key={item.label}
                 to={item.path}
                 end={item.path === "/"}
               >
-                <span>{item.icon}</span>
+
+                <span>
+                  {item.icon}
+                </span>
+
                 {item.label}
+
               </NavLink>
+
             ))}
+
           </nav>
+
 
           <button
             type="button"
             className="create-button"
             onClick={openCreate}
           >
-            ＋ Create
+
+            + Create
+
           </button>
+
 
           <button
             type="button"
             className="account-card"
             onClick={() => navigate("/profile")}
           >
-            <Avatar name="Priyam" />
+
+            <Avatar
+              name={displayName}
+            />
+
 
             <span>
-              <strong>Priyam</strong>
-              <small>@priyam</small>
+
+              <strong>
+                {displayName}
+              </strong>
+
+              <small>
+                @{username}
+              </small>
+
             </span>
 
-            <b>···</b>
+
+            <b>
+              ···
+            </b>
+
           </button>
+
+
+          <button
+            type="button"
+            className="account-logout"
+            onClick={onLogout}
+          >
+
+            Log out
+
+          </button>
+
+
         </aside>
 
+
         <main className="main-column">
+
+
           <Routes>
+
+
             <Route
               path="/"
-              element={<Home onCreate={openCreate} />}
+              element={
+                <Home
+                  onCreate={openCreate}
+                />
+              }
             />
+
 
             <Route
               path="/explore"
-              element={<Explore />}
+              element={
+                <Explore />
+              }
             />
+
 
             <Route
               path="/messages"
-              element={<Messages />}
+              element={
+                <Messages />
+              }
             />
+
 
             <Route
               path="/notifications"
               element={
+
                 <BasicPage
                   type="notifications"
                   title="Activity."
                   description="The things that happened while you were away."
                 />
+
               }
             />
+
 
             <Route
               path="/profile"
               element={
+
                 <BasicPage
                   type="profile"
-                  title="Priyam."
-                  description="@priyam · building things and figuring them out."
+                  title={`${displayName}.`}
+                  description={`@${username} · building things and figuring them out.`}
+                />
+
+              }
+            />
+
+
+            <Route
+              path="/create"
+              element={
+                <Navigate
+                  to="/"
+                  replace
                 />
               }
             />
 
-            <Route
-              path="/create"
-              element={<Navigate to="/" replace />}
-            />
 
             <Route
               path="*"
-              element={<Navigate to="/" replace />}
+              element={
+                <Navigate
+                  to="/"
+                  replace
+                />
+              }
             />
+
+
           </Routes>
+
+
         </main>
 
+
         <RightRail />
+
+
       </div>
 
-      <nav className="mobile-nav" aria-label="Mobile navigation">
-        {navigation.slice(0, 4).map((item) => (
-          <NavLink
-            key={item.label}
-            to={item.path}
-            end={item.path === "/"}
-          >
-            <span>{item.icon}</span>
-            <small>
-              {item.label === "Notifications"
-                ? "Alerts"
-                : item.label}
-            </small>
-          </NavLink>
-        ))}
+
+      <nav
+        className="mobile-nav"
+        aria-label="Mobile navigation"
+      >
+
+
+        {navigation
+          .slice(0, 4)
+          .map((item) => (
+
+            <NavLink
+              key={item.label}
+              to={item.path}
+              end={item.path === "/"}
+            >
+
+              <span>
+                {item.icon}
+              </span>
+
+              <small>
+
+                {item.label === "Notifications"
+                  ? "Alerts"
+                  : item.label}
+
+              </small>
+
+            </NavLink>
+
+          ))}
+
 
         <button
           type="button"
           onClick={openCreate}
           aria-label="Create post"
         >
-          ＋
+
+          +
+
         </button>
+
+
       </nav>
 
+
       {createOpen && (
+
         <CreateModal
           onClose={closeCreate}
         />
+
       )}
+
+
     </div>
+
   );
+
+}
+
+
+
+export default function App() {
+
+  const [session, setSession] =
+    useState(null);
+
+  const [authReady, setAuthReady] =
+    useState(false);
+
+
+  useEffect(() => {
+
+    let alive = true;
+
+
+    async function initializeAuth() {
+
+      const {
+        data: {
+          session: currentSession,
+        },
+      } = await supabase.auth.getSession();
+
+
+      if (alive) {
+
+        setSession(currentSession);
+
+        setAuthReady(true);
+
+      }
+
+    }
+
+
+    initializeAuth();
+
+
+    const {
+      data: {
+        subscription,
+      },
+    } =
+      supabase.auth.onAuthStateChange(
+        (_event, nextSession) => {
+
+          setSession(nextSession);
+
+          setAuthReady(true);
+
+        }
+      );
+
+
+    return () => {
+
+      alive = false;
+
+      subscription.unsubscribe();
+
+    };
+
+  }, []);
+
+
+  async function handleLogout() {
+
+    await supabase.auth.signOut();
+
+  }
+
+
+  if (!authReady) {
+
+    return null;
+
+  }
+
+
+  if (!session) {
+
+    return (
+      <AuthScreen />
+    );
+
+  }
+
+
+  return (
+
+    <AppShell
+      user={session.user}
+      onLogout={handleLogout}
+    />
+
+  );
+
 }
