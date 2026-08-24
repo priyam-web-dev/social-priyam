@@ -24,6 +24,22 @@ import BasicPage from "./pages/BasicPage";
 
 import { useAuth } from "./context/AuthContext";
 
+function getDisplayName(user) {
+  return (
+    user?.user_metadata?.display_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split("@")[0] ||
+    "User"
+  );
+}
+
+function getUsername(user) {
+  return (
+    user?.user_metadata?.username ||
+    user?.email?.split("@")[0] ||
+    "user"
+  );
+}
 
 function AppShell({ user, onLogout }) {
   const navigate = useNavigate();
@@ -31,30 +47,17 @@ function AppShell({ user, onLogout }) {
 
   const [createOpen, setCreateOpen] = useState(false);
 
-
-  const displayName =
-    user?.user_metadata?.display_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split("@")[0] ||
-    "User";
-
-
-  const username =
-    user?.user_metadata?.username ||
-    user?.email?.split("@")[0] ||
-    "user";
-
+  const displayName = getDisplayName(user);
+  const username = getUsername(user);
 
   useEffect(() => {
     setCreateOpen(false);
   }, [location.pathname]);
 
-
   useEffect(() => {
     function handleKeyboard(event) {
       const modifier =
         event.metaKey || event.ctrlKey;
-
 
       if (
         modifier &&
@@ -64,18 +67,15 @@ function AppShell({ user, onLogout }) {
         navigate("/explore");
       }
 
-
       if (event.key === "Escape") {
         setCreateOpen(false);
       }
     }
 
-
     window.addEventListener(
       "keydown",
       handleKeyboard
     );
-
 
     return () => {
       window.removeEventListener(
@@ -85,22 +85,17 @@ function AppShell({ user, onLogout }) {
     };
   }, [navigate]);
 
-
   function openCreate() {
     setCreateOpen(true);
   }
-
 
   function closeCreate() {
     setCreateOpen(false);
   }
 
-
   return (
     <div className="app-shell">
-
       <header className="topbar">
-
         <button
           type="button"
           className="wordmark"
@@ -109,14 +104,10 @@ function AppShell({ user, onLogout }) {
         >
           <b>S</b>
 
-          <span>
-            social
-          </span>
+          <span>social</span>
         </button>
 
-
         <div className="topbar-actions">
-
           <button
             type="button"
             className="search-trigger"
@@ -129,14 +120,10 @@ function AppShell({ user, onLogout }) {
               Search
             </span>
 
-            <kbd>
-              ⌘ K
-            </kbd>
+            <kbd>⌘ K</kbd>
           </button>
 
-
           <ThemeButton />
-
 
           <button
             type="button"
@@ -149,20 +136,13 @@ function AppShell({ user, onLogout }) {
               size="sm"
             />
 
-            <span>
-              {displayName}
-            </span>
+            <span>{displayName}</span>
           </button>
-
         </div>
-
       </header>
 
-
       <div className="page-grid">
-
         <aside className="sidebar">
-
           <nav
             className="side-nav"
             aria-label="Main navigation"
@@ -173,15 +153,12 @@ function AppShell({ user, onLogout }) {
                 to={item.path}
                 end={item.path === "/"}
               >
-                <span>
-                  {item.icon}
-                </span>
+                <span>{item.icon}</span>
 
                 {item.label}
               </NavLink>
             ))}
           </nav>
-
 
           <button
             type="button"
@@ -191,31 +168,21 @@ function AppShell({ user, onLogout }) {
             + Create
           </button>
 
-
           <button
             type="button"
             className="account-card"
             onClick={() => navigate("/profile")}
           >
-            <Avatar
-              name={displayName}
-            />
+            <Avatar name={displayName} />
 
             <span>
-              <strong>
-                {displayName}
-              </strong>
+              <strong>{displayName}</strong>
 
-              <small>
-                @{username}
-              </small>
+              <small>@{username}</small>
             </span>
 
-            <b>
-              ···
-            </b>
+            <b>•••</b>
           </button>
-
 
           <button
             type="button"
@@ -224,59 +191,46 @@ function AppShell({ user, onLogout }) {
           >
             Log out
           </button>
-
         </aside>
 
-
         <main className="main-column">
-
           <Routes>
-
             <Route
               path="/"
               element={
-                <Home
-                  onCreate={openCreate}
-                />
+                <Home onCreate={openCreate} />
               }
             />
-
 
             <Route
               path="/explore"
               element={<Explore />}
             />
 
-
             <Route
               path="/messages"
               element={<Messages />}
             />
-
 
             <Route
               path="/notifications"
               element={
                 <BasicPage
                   type="notifications"
-                  title="Activity."
-                  description="The things that happened while you were away."
+                  user={user}
                 />
               }
             />
-
 
             <Route
               path="/profile"
               element={
                 <BasicPage
                   type="profile"
-                  title={`${displayName}.`}
-                  description={`@${username} · building things and figuring them out.`}
+                  user={user}
                 />
               }
             />
-
 
             <Route
               path="/create"
@@ -288,7 +242,6 @@ function AppShell({ user, onLogout }) {
               }
             />
 
-
             <Route
               path="*"
               element={
@@ -298,22 +251,16 @@ function AppShell({ user, onLogout }) {
                 />
               }
             />
-
           </Routes>
-
         </main>
 
-
         <RightRail />
-
       </div>
-
 
       <nav
         className="mobile-nav"
         aria-label="Mobile navigation"
       >
-
         {navigation
           .slice(0, 4)
           .map((item) => (
@@ -322,9 +269,7 @@ function AppShell({ user, onLogout }) {
               to={item.path}
               end={item.path === "/"}
             >
-              <span>
-                {item.icon}
-              </span>
+              <span>{item.icon}</span>
 
               <small>
                 {item.label === "Notifications"
@@ -334,7 +279,6 @@ function AppShell({ user, onLogout }) {
             </NavLink>
           ))}
 
-
         <button
           type="button"
           onClick={openCreate}
@@ -342,30 +286,22 @@ function AppShell({ user, onLogout }) {
         >
           +
         </button>
-
       </nav>
 
-
       {createOpen && (
-        <CreateModal
-          onClose={closeCreate}
-        />
+        <CreateModal onClose={closeCreate} />
       )}
-
     </div>
   );
 }
 
-
 export default function App() {
-
   const {
     user,
     loading,
     isAuthenticated,
     signOut,
   } = useAuth();
-
 
   if (loading) {
     return (
@@ -381,11 +317,9 @@ export default function App() {
     );
   }
 
-
   if (!isAuthenticated) {
     return <AuthScreen />;
   }
-
 
   return (
     <AppShell
