@@ -1,202 +1,458 @@
-import { useMemo, useState } from "react";
-import Avatar from "../components/Avatar";
+import { useEffect, useMemo, useState } from "react";
 
-const initialConversations = [
-  {
-    id: 1,
-    name: "Aarav",
-    handle: "aarav",
-    preview: "Did you finish the new layout?",
-    time: "now",
-    status: "online",
-    unread: 2,
-    messages: [
-      {
-        id: 1,
-        text: "Did you finish the new layout?",
-        time: "10:38",
-        mine: false,
-      },
-      {
-        id: 2,
-        text: "Almost. I am cleaning up the mobile version now.",
-        time: "10:39",
-        mine: true,
-      },
-      {
-        id: 3,
-        text: "Nice. Send it when you're done.",
-        time: "10:42",
-        mine: false,
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "Nisha",
-    handle: "nisha",
-    preview: "Send me that song later.",
-    time: "1h",
-    status: "away",
-    unread: 1,
-    messages: [
-      {
-        id: 1,
-        text: "That song is actually so good.",
-        time: "09:12",
-        mine: false,
-      },
-      {
-        id: 2,
-        text: "Right? I have had it on repeat.",
-        time: "09:18",
-        mine: true,
-      },
-      {
-        id: 3,
-        text: "Send me that song later.",
-        time: "09:19",
-        mine: false,
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: "Riya",
-    handle: "riya",
-    preview: "The design looks much better now.",
-    time: "3h",
-    status: "online",
-    unread: 0,
-    messages: [
-      {
-        id: 1,
-        text: "The design looks much better now.",
-        time: "07:41",
-        mine: false,
-      },
-      {
-        id: 2,
-        text: "I finally got the spacing right.",
-        time: "07:45",
-        mine: true,
-      },
-    ],
-  },
-  {
-    id: 4,
-    name: "Dev",
-    handle: "dev",
-    preview: "I'll check it tonight.",
-    time: "Yesterday",
-    status: "offline",
-    unread: 0,
-    messages: [
-      {
-        id: 1,
-        text: "Can you send the project link?",
-        time: "Yesterday",
-        mine: false,
-      },
-      {
-        id: 2,
-        text: "Sure, I will send it.",
-        time: "Yesterday",
-        mine: true,
-      },
-      {
-        id: 3,
-        text: "I'll check it tonight.",
-        time: "Yesterday",
-        mine: false,
-      },
-    ],
-  },
-];
+import Avatar from "../components/Avatar";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../context/AuthContext";
+
+function getDisplayName(profile) {
+  return (
+    profile?.display_name ||
+    profile?.username ||
+    "User"
+  );
+}
+
+function getUsername(profile) {
+  return profile?.username || "user";
+}
+
+function formatTime(dateString) {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+  const now = new Date();
+
+  const diff = Math.max(
+    0,
+    now.getTime() - date.getTime()
+  );
+
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  if (hours < 24) return `${hours}h`;
+  if (days < 7) return `${days}d`;
+
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function formatMessageTime(dateString) {
+  if (!dateString) return "";
+
+  return new Date(dateString).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default function Messages() {
-  const [conversations, setConversations] = useState(initialConversations);
-  const [selectedId, setSelectedId] = useState(1);
+  const { user } = useAuth();
+
+  const [profiles, setProfiles] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [memberships, setMemberships] = useState([]);
+  const [messages, setMessages] = useState([]);
+
+  const [selectedId, setSelectedId] = useState(null);
+
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
 
-  const selectedConversation = conversations.find(
-    (conversation) => conversation.id === selectedId
-  );
+  const [showNewMessage, setShowNewMessage] =
+    useState(false);
+
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const [searchUsers, setSearchUsers] = useState("");
+
+  async function loadMessagingData() {
+    if (!user?.id) return;
+
+    setLoading(true);
+    setError("");
+
+    const [
+      profilesResult,
+      membershipsResult,
+      conversationsResult,
+      messagesResult,
+    ] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", {
+          ascending: true,
+        }),
+
+      supabase
+        .from("conversation_members")
+        .select("*")
+        .eq("user_id", user.id),
+
+      supabase
+        .from("conversations")
+        .select("*")
+        .order("created_at", {
+          ascending: false,
+        }),
+
+      supabase
+        .from("messages")
+        .select("*")
+        .order("created_at", {
+          ascending: true,
+        }),
+    ]);
+
+    if (profilesResult.error) {
+      console.error(
+        "Profiles error:",
+        profilesResult.error
+      );
+    }
+
+    if (membershipsResult.error) {
+      console.error(
+        "Membership error:",
+        membershipsResult.error
+      );
+    }
+
+    if (conversationsResult.error) {
+      console.error(
+        "Conversations error:",
+        conversationsResult.error
+      );
+    }
+
+    if (messagesResult.error) {
+      console.error(
+        "Messages error:",
+        messagesResult.error
+      );
+    }
+
+    const hasError =
+      profilesResult.error ||
+      membershipsResult.error ||
+      conversationsResult.error ||
+      messagesResult.error;
+
+    if (hasError) {
+      setError(
+        "Couldn't load your conversations."
+      );
+      setLoading(false);
+      return;
+    }
+
+    setProfiles(profilesResult.data || []);
+    setMemberships(membershipsResult.data || []);
+    setConversations(
+      conversationsResult.data || []
+    );
+    setMessages(messagesResult.data || []);
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadMessagingData();
+  }, [user?.id]);
+
+  const profileMap = useMemo(() => {
+    const map = {};
+
+    profiles.forEach((profile) => {
+      map[profile.id] = profile;
+    });
+
+    return map;
+  }, [profiles]);
+
+  const conversationData = useMemo(() => {
+    return memberships
+      .map((membership) => {
+        const conversation =
+          conversations.find(
+            (item) =>
+              item.id === membership.conversation_id
+          );
+
+        if (!conversation) return null;
+
+        const memberIds = memberships
+          .filter(
+            (item) =>
+              item.conversation_id ===
+              membership.conversation_id
+          )
+          .map((item) => item.user_id);
+
+        const otherUserId = memberIds.find(
+          (id) => id !== user.id
+        );
+
+        if (!otherUserId) return null;
+
+        const otherProfile =
+          profileMap[otherUserId];
+
+        if (!otherProfile) return null;
+
+        const conversationMessages =
+          messages.filter(
+            (item) =>
+              item.conversation_id ===
+              conversation.id
+          );
+
+        const lastMessage =
+          conversationMessages[
+            conversationMessages.length - 1
+          ];
+
+        return {
+          id: conversation.id,
+          otherUserId,
+          profile: otherProfile,
+          messages: conversationMessages,
+          preview: lastMessage?.content || "No messages yet.",
+          time: lastMessage
+            ? formatTime(lastMessage.created_at)
+            : formatTime(conversation.created_at),
+        };
+      })
+      .filter(Boolean);
+  }, [
+    memberships,
+    conversations,
+    messages,
+    profileMap,
+    user?.id,
+  ]);
+
+  const selectedConversation =
+    conversationData.find(
+      (conversation) =>
+        conversation.id === selectedId
+    ) || null;
 
   const filteredConversations = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     if (!query) {
-      return conversations;
+      return conversationData;
     }
 
-    return conversations.filter(
-      (conversation) =>
-        conversation.name.toLowerCase().includes(query) ||
-        conversation.handle.toLowerCase().includes(query) ||
-        conversation.preview.toLowerCase().includes(query)
+    return conversationData.filter(
+      (conversation) => {
+        const name = getDisplayName(
+          conversation.profile
+        ).toLowerCase();
+
+        const handle = getUsername(
+          conversation.profile
+        ).toLowerCase();
+
+        const preview =
+          conversation.preview.toLowerCase();
+
+        return (
+          name.includes(query) ||
+          handle.includes(query) ||
+          preview.includes(query)
+        );
+      }
     );
-  }, [conversations, search]);
+  }, [conversationData, search]);
+
+  const availableUsers = useMemo(() => {
+    const query =
+      searchUsers.trim().toLowerCase();
+
+    return profiles
+      .filter((profile) => profile.id !== user?.id)
+      .filter((profile) => {
+        if (!query) return true;
+
+        return (
+          getDisplayName(profile)
+            .toLowerCase()
+            .includes(query) ||
+          getUsername(profile)
+            .toLowerCase()
+            .includes(query)
+        );
+      });
+  }, [profiles, searchUsers, user?.id]);
 
   function selectConversation(id) {
     setSelectedId(id);
-    setMenuOpen(false);
-
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === id
-          ? { ...conversation, unread: 0 }
-          : conversation
-      )
-    );
+    setShowNewMessage(false);
+    setSearchUsers("");
   }
 
-  function sendMessage(event) {
+  async function startConversation(otherUser) {
+    if (!user?.id || !otherUser?.id) {
+      return;
+    }
+
+    setError("");
+
+    const existingMembership =
+      memberships.find(
+        (membership) =>
+          membership.user_id === user.id &&
+          memberships.some(
+            (otherMembership) =>
+              otherMembership.conversation_id ===
+                membership.conversation_id &&
+              otherMembership.user_id ===
+                otherUser.id
+          )
+      );
+
+    if (existingMembership) {
+      selectConversation(
+        existingMembership.conversation_id
+      );
+      return;
+    }
+
+    const { data: conversation, error: conversationError } =
+      await supabase
+        .from("conversations")
+        .insert({})
+        .select()
+        .single();
+
+    if (conversationError) {
+      console.error(
+        "Conversation creation failed:",
+        conversationError
+      );
+
+      setError(
+        "Couldn't start the conversation."
+      );
+
+      return;
+    }
+
+    const { error: membersError } =
+      await supabase
+        .from("conversation_members")
+        .insert([
+          {
+            conversation_id: conversation.id,
+            user_id: user.id,
+          },
+          {
+            conversation_id: conversation.id,
+            user_id: otherUser.id,
+          },
+        ]);
+
+    if (membersError) {
+      console.error(
+        "Conversation members failed:",
+        membersError
+      );
+
+      await supabase
+        .from("conversations")
+        .delete()
+        .eq("id", conversation.id);
+
+      setError(
+        "Couldn't create the conversation."
+      );
+
+      return;
+    }
+
+    setConversations((current) => [
+      conversation,
+      ...current,
+    ]);
+
+    setMemberships((current) => [
+      ...current,
+      {
+        conversation_id: conversation.id,
+        user_id: user.id,
+      },
+      {
+        conversation_id: conversation.id,
+        user_id: otherUser.id,
+      },
+    ]);
+
+    setShowNewMessage(false);
+    setSearchUsers("");
+    setSelectedId(conversation.id);
+  }
+
+  async function sendMessage(event) {
     event.preventDefault();
 
     const cleanMessage = message.trim();
 
-    if (!cleanMessage || !selectedConversation) {
+    if (
+      !cleanMessage ||
+      !selectedConversation ||
+      !user?.id ||
+      sending
+    ) {
       return;
     }
 
-    const newMessage = {
-      id: Date.now(),
-      text: cleanMessage,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      mine: true,
-    };
+    setSending(true);
+    setError("");
 
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === selectedConversation.id
-          ? {
-              ...conversation,
-              preview: cleanMessage,
-              time: "now",
-              messages: [...conversation.messages, newMessage],
-            }
-          : conversation
-      )
-    );
+    const { data, error: sendError } =
+      await supabase
+        .from("messages")
+        .insert({
+          conversation_id:
+            selectedConversation.id,
+          sender_id: user.id,
+          content: cleanMessage,
+        })
+        .select()
+        .single();
+
+    if (sendError) {
+      console.error(
+        "Message send failed:",
+        sendError
+      );
+
+      setError(
+        sendError.message ||
+          "Couldn't send your message."
+      );
+
+      setSending(false);
+      return;
+    }
+
+    setMessages((current) => [
+      ...current,
+      data,
+    ]);
 
     setMessage("");
-  }
-
-  function startNewMessage() {
-    const existing = conversations.find(
-      (conversation) => conversation.handle === "aarav"
-    );
-
-    if (existing) {
-      selectConversation(existing.id);
-      return;
-    }
+    setSending(false);
   }
 
   return (
@@ -207,7 +463,10 @@ export default function Messages() {
             <button
               type="button"
               className="new-message-button"
-              onClick={startNewMessage}
+              onClick={() => {
+                setShowNewMessage(true);
+                setSelectedId(null);
+              }}
               aria-label="New message"
             >
               +
@@ -219,148 +478,282 @@ export default function Messages() {
               <input
                 type="search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
                 placeholder="Search conversations"
                 aria-label="Search conversations"
               />
             </label>
           </div>
 
-          <div className="conversation-list">
-            {filteredConversations.length === 0 ? (
-              <div className="chat-search-empty">
-                No conversations found.
-              </div>
-            ) : (
-              filteredConversations.map((conversation) => (
+          {showNewMessage ? (
+            <div className="new-message-panel">
+              <div className="new-message-heading">
+                <strong>New message</strong>
+
                 <button
-                  key={conversation.id}
                   type="button"
-                  className={
-                    conversation.id === selectedId
-                      ? "conversation active"
-                      : "conversation"
+                  onClick={() =>
+                    setShowNewMessage(false)
                   }
-                  onClick={() => selectConversation(conversation.id)}
                 >
-                  <div className="conversation-avatar">
-                    <Avatar name={conversation.name} />
-
-                    <span
-                      className={`presence ${conversation.status}`}
-                      aria-hidden="true"
-                    />
-                  </div>
-
-                  <span className="conversation-copy">
-                    <strong>{conversation.name}</strong>
-                    <small>{conversation.preview}</small>
-                  </span>
-
-                  <span className="conversation-meta">
-                    <time>{conversation.time}</time>
-
-                    {conversation.unread > 0 && (
-                      <b>{conversation.unread}</b>
-                    )}
-                  </span>
+                  Cancel
                 </button>
-              ))
-            )}
-          </div>
+              </div>
+
+              <input
+                className="new-message-search"
+                type="search"
+                value={searchUsers}
+                onChange={(event) =>
+                  setSearchUsers(
+                    event.target.value
+                  )
+                }
+                placeholder="Search people"
+                autoFocus
+              />
+
+              <div className="new-message-users">
+                {availableUsers.length === 0 ? (
+                  <div className="chat-search-empty">
+                    No other users found.
+                  </div>
+                ) : (
+                  availableUsers.map((profile) => (
+                    <button
+                      type="button"
+                      className="new-message-user"
+                      key={profile.id}
+                      onClick={() =>
+                        startConversation(profile)
+                      }
+                    >
+                      <Avatar
+                        name={getDisplayName(
+                          profile
+                        )}
+                        size="sm"
+                        src={
+                          profile.avatar_url ||
+                          undefined
+                        }
+                      />
+
+                      <span>
+                        <strong>
+                          {getDisplayName(
+                            profile
+                          )}
+                        </strong>
+
+                        <small>
+                          @{getUsername(profile)}
+                        </small>
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="conversation-list">
+              {loading ? (
+                <div className="chat-search-empty">
+                  Loading conversations...
+                </div>
+              ) : filteredConversations.length ===
+                0 ? (
+                <div className="chat-search-empty">
+                  <strong>No conversations yet.</strong>
+                  <span>
+                    Start a conversation with
+                    another member.
+                  </span>
+                </div>
+              ) : (
+                filteredConversations.map(
+                  (conversation) => {
+                    const profile =
+                      conversation.profile;
+
+                    return (
+                      <button
+                        key={conversation.id}
+                        type="button"
+                        className={
+                          conversation.id ===
+                          selectedId
+                            ? "conversation active"
+                            : "conversation"
+                        }
+                        onClick={() =>
+                          selectConversation(
+                            conversation.id
+                          )
+                        }
+                      >
+                        <div className="conversation-avatar">
+                          <Avatar
+                            name={getDisplayName(
+                              profile
+                            )}
+                            src={
+                              profile.avatar_url ||
+                              undefined
+                            }
+                          />
+                        </div>
+
+                        <span className="conversation-copy">
+                          <strong>
+                            {getDisplayName(
+                              profile
+                            )}
+                          </strong>
+
+                          <small>
+                            {conversation.preview}
+                          </small>
+                        </span>
+
+                        <span className="conversation-meta">
+                          <time>
+                            {conversation.time}
+                          </time>
+                        </span>
+                      </button>
+                    );
+                  }
+                )
+              )}
+            </div>
+          )}
         </aside>
 
-        {selectedConversation && (
+        {selectedConversation ? (
           <section className="conversation-panel">
             <header className="conversation-header">
               <button
                 type="button"
                 className="chat-back"
-                onClick={() => setSelectedId(null)}
+                onClick={() =>
+                  setSelectedId(null)
+                }
                 aria-label="Back to conversations"
               >
                 ←
               </button>
 
               <Avatar
-                name={selectedConversation.name}
+                name={getDisplayName(
+                  selectedConversation.profile
+                )}
                 size="sm"
+                src={
+                  selectedConversation.profile
+                    .avatar_url || undefined
+                }
               />
 
               <div>
-                <strong>{selectedConversation.name}</strong>
+                <strong>
+                  {getDisplayName(
+                    selectedConversation.profile
+                  )}
+                </strong>
 
                 <span>
-                  @{selectedConversation.handle} ·{" "}
-                  {selectedConversation.status}
+                  @
+                  {getUsername(
+                    selectedConversation.profile
+                  )}
                 </span>
               </div>
 
               <button
                 type="button"
                 className="chat-more"
-                onClick={() => setMenuOpen((value) => !value)}
                 aria-label="Conversation options"
               >
                 ···
               </button>
-
-              {menuOpen && (
-                <div className="post-menu">
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Mute conversation
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Clear conversation
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Report
-                  </button>
-                </div>
-              )}
             </header>
 
             <div className="conversation-messages">
               <div className="conversation-start">
                 <Avatar
-                  name={selectedConversation.name}
+                  name={getDisplayName(
+                    selectedConversation.profile
+                  )}
                   size="lg"
+                  src={
+                    selectedConversation.profile
+                      .avatar_url || undefined
+                  }
                 />
 
-                <strong>{selectedConversation.name}</strong>
+                <strong>
+                  {getDisplayName(
+                    selectedConversation.profile
+                  )}
+                </strong>
 
                 <span>
-                  @{selectedConversation.handle}
+                  @
+                  {getUsername(
+                    selectedConversation.profile
+                  )}
                 </span>
               </div>
 
-              {selectedConversation.messages.map((item) => (
-                <div
-                  key={item.id}
-                  className={
-                    item.mine
-                      ? "message-row mine"
-                      : "message-row"
-                  }
-                >
-                  <div className="message-bubble">
-                    <p>{item.text}</p>
-                    <time>{item.time}</time>
+              {selectedConversation.messages.map(
+                (item) => (
+                  <div
+                    key={item.id}
+                    className={
+                      item.sender_id === user?.id
+                        ? "message-row mine"
+                        : "message-row"
+                    }
+                  >
+                    <div className="message-bubble">
+                      <p>{item.content}</p>
+
+                      <time>
+                        {formatMessageTime(
+                          item.created_at
+                        )}
+                      </time>
+                    </div>
                   </div>
+                )
+              )}
+
+              {selectedConversation.messages.length ===
+                0 && (
+                <div className="chat-empty">
+                  <strong>
+                    Start the conversation.
+                  </strong>
+
+                  <span>
+                    Send a message to{" "}
+                    {getDisplayName(
+                      selectedConversation.profile
+                    )}
+                    .
+                  </span>
                 </div>
-              ))}
+              )}
             </div>
+
+            {error && (
+              <div className="message-error">
+                {error}
+              </div>
+            )}
 
             <form
               className="message-composer"
@@ -369,19 +762,59 @@ export default function Messages() {
               <input
                 type="text"
                 value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                placeholder={`Message ${selectedConversation.name}...`}
-                aria-label={`Message ${selectedConversation.name}`}
+                onChange={(event) =>
+                  setMessage(event.target.value)
+                }
+                placeholder={`Message ${getDisplayName(
+                  selectedConversation.profile
+                )}...`}
+                aria-label={`Message ${getDisplayName(
+                  selectedConversation.profile
+                )}`}
+                maxLength={2000}
               />
 
               <button
                 type="submit"
-                disabled={!message.trim()}
+                disabled={
+                  !message.trim() || sending
+                }
                 aria-label="Send message"
               >
-                ↗
+                {sending ? "…" : "↗"}
               </button>
             </form>
+          </section>
+        ) : (
+          <section className="conversation-panel conversation-empty-panel">
+            <div className="conversation-empty">
+              <div className="conversation-empty-mark">
+                S
+              </div>
+
+              <strong>
+                {showNewMessage
+                  ? "Find someone to message."
+                  : "Your messages live here."}
+              </strong>
+
+              <span>
+                {showNewMessage
+                  ? "Choose a real member to start a conversation."
+                  : "Select a conversation or start a new one."}
+              </span>
+
+              {!showNewMessage && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowNewMessage(true)
+                  }
+                >
+                  New message
+                </button>
+              )}
+            </div>
           </section>
         )}
       </div>

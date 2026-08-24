@@ -1,30 +1,31 @@
 export default function Avatar({
-  name = "Priyam",
+  name = "User",
   size = "md",
   src = "",
 }) {
   const initial =
     name?.trim()?.slice(0, 1)?.toUpperCase() || "U";
 
-  return (
-    <span
-      className={`avatar avatar-${size} ${
-        src ? "avatar-has-image" : ""
-      }`}
-      aria-label={name}
-    >
-      {src ? (
+  if (src) {
+    return (
+      <span
+        className={`avatar avatar-${size} avatar-image`}
+      >
         <img
           src={src}
           alt={name}
-          className="avatar-image"
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
-          }}
+          loading="lazy"
         />
-      ) : (
-        initial
-      )}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`avatar avatar-${size}`}
+      aria-label={name}
+    >
+      {initial}
     </span>
   );
 }
