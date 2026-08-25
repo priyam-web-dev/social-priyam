@@ -439,35 +439,6 @@ export default function Messages() {
    * ========================================================
    */
 
-  const availableUsers = useMemo(() => {
-    const query = searchUsers
-      .trim()
-      .toLowerCase();
-
-    return profiles
-      .filter(
-        (profile) =>
-          profile.id !== user?.id
-      )
-      .filter((profile) => {
-        if (!query) {
-          return true;
-        }
-
-        return (
-          getDisplayName(profile)
-            .toLowerCase()
-            .includes(query) ||
-          getUsername(profile)
-            .toLowerCase()
-            .includes(query)
-        );
-      });
-  }, [
-    profiles,
-    searchUsers,
-    user?.id,
-  ]);
 
   /*
    * ========================================================
