@@ -95,10 +95,11 @@ export default function Messages() {
           ascending: true,
         }),
 
+      // Load every membership belonging to conversations
+      // the current user is part of. RLS handles the privacy boundary.
       supabase
         .from("conversation_members")
-        .select("*")
-        .eq("user_id", user.id),
+        .select("*"),
 
       supabase
         .from("conversations")
@@ -971,12 +972,19 @@ export default function Messages() {
                 a conversation.
               </span>
 
+              {error && (
+                <div className="message-error">
+                  {error}
+                </div>
+              )}
+
               {!showNewMessage && (
                 <button
                   type="button"
                   onClick={() => {
                     setShowNewMessage(true);
                     setSearchUsers("");
+                    setError("");
                   }}
                 >
                   New message
