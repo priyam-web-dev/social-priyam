@@ -157,13 +157,6 @@ export default function Messages() {
     loadMessagingData();
   }, [user?.id]);
 
-  /*
-   * Search real users from Supabase.
-   *
-   * IMPORTANT:
-   * The results are later restricted to users who already
-   * have a conversation with the current user.
-   */
   useEffect(() => {
     if (!showNewMessage || !user?.id) {
       return;
@@ -255,11 +248,13 @@ export default function Messages() {
   }, [profiles]);
 
   /*
-   * Build exactly ONE UI item per conversation.
+   * IMPORTANT:
    *
-   * A conversation has multiple membership rows,
-   * so we must never map memberships directly into
-   * sidebar items.
+   * A conversation is shown ONLY when it contains
+   * at least one real message.
+   *
+   * Empty conversations created in
+   * conversation_members are ignored completely.
    */
   const conversationData = useMemo(() => {
     if (!user?.id) {
@@ -313,6 +308,17 @@ export default function Messages() {
               new Date(b.created_at).getTime()
           );
 
+      /*
+       * THIS IS THE IMPORTANT FIX.
+       *
+       * If nobody has actually sent a message,
+       * this conversation does NOT exist from the
+       * user's UI perspective.
+       */
+      if (conversationMessages.length === 0) {
+        return;
+      }
+
       const lastMessage =
         conversationMessages[
           conversationMessages.length - 1
@@ -326,15 +332,10 @@ export default function Messages() {
           profile: otherProfile,
           messages: conversationMessages,
           preview:
-            lastMessage?.content ||
-            "No messages yet.",
-          time: lastMessage
-            ? formatTime(
-                lastMessage.created_at
-              )
-            : formatTime(
-                conversation.created_at
-              ),
+            lastMessage.content || "",
+          time: formatTime(
+            lastMessage.created_at
+          ),
           createdAt:
             conversation.created_at,
         }
@@ -346,11 +347,11 @@ export default function Messages() {
     ).sort((a, b) => {
       const aLast =
         a.messages[a.messages.length - 1]
-          ?.created_at || a.createdAt;
+          ?.created_at;
 
       const bLast =
         b.messages[b.messages.length - 1]
-          ?.created_at || b.createdAt;
+          ?.created_at;
 
       return (
         new Date(bLast).getTime() -
@@ -406,10 +407,11 @@ export default function Messages() {
   ]);
 
   /*
-   * ONLY users with an existing conversation are
-   * allowed to appear in the New Message suggestions.
+   * ONLY users with an actual message history
+   * appear in the New Message picker.
    *
-   * This removes random/unmessaged users.
+   * Empty conversations are automatically excluded
+   * because conversationData excludes them.
    */
   const availableUsers = useMemo(() => {
     const query = searchUsers
@@ -470,12 +472,6 @@ export default function Messages() {
 
     setError("");
 
-    /*
-     * First use the conversation already loaded
-     * in the frontend.
-     *
-     * This prevents unnecessary RPC calls.
-     */
     const existingConversation =
       conversationData.find(
         (conversation) =>
@@ -487,14 +483,10 @@ export default function Messages() {
       selectConversation(
         existingConversation.id
       );
+
       return;
     }
 
-    /*
-     * Safety fallback:
-     * create_conversation() handles the database-side
-     * create/reuse logic.
-     */
     try {
       const {
         data: conversationId,
@@ -626,6 +618,7 @@ export default function Messages() {
             </button>
 
             <label className="messages-search">
+
               <span>⌕</span>
 
               <input
@@ -639,6 +632,7 @@ export default function Messages() {
                 placeholder="Search conversations"
                 aria-label="Search conversations"
               />
+
             </label>
 
           </div>
@@ -694,11 +688,11 @@ export default function Messages() {
                   <div className="chat-search-empty">
 
                     <strong>
-                      No existing conversations.
+                      No people to show.
                     </strong>
 
                     <span>
-                      Only people you've already
+                      Only people you have already
                       messaged appear here.
                     </span>
 
@@ -976,27 +970,6 @@ export default function Messages() {
                   </div>
 
                 )
-              )}
-
-              {selectedConversation.messages.length ===
-                0 && (
-
-                <div className="chat-empty">
-
-                  <strong>
-                    Start the conversation.
-                  </strong>
-
-                  <span>
-                    Send a message to{" "}
-                    {getDisplayName(
-                      selectedConversation.profile
-                    )}
-                    .
-                  </span>
-
-                </div>
-
               )}
 
             </div>
