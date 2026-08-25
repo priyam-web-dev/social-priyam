@@ -67,11 +67,14 @@ export default function Messages() {
   const [showNewMessage, setShowNewMessage] =
     useState(false);
 
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
-
   const [searchUsers, setSearchUsers] = useState("");
+
+  const [loading, setLoading] = useState(true);
+  const [usersLoading, setUsersLoading] =
+    useState(false);
+  const [sending, setSending] = useState(false);
+
+  const [error, setError] = useState("");
 
   async function loadMessagingData() {
     if (!user?.id) return;
@@ -140,13 +143,12 @@ export default function Messages() {
       );
     }
 
-    const hasError =
+    if (
       profilesResult.error ||
       membershipsResult.error ||
       conversationsResult.error ||
-      messagesResult.error;
-
-    if (hasError) {
+      messagesResult.error
+    ) {
       setError(
         "Couldn't load your conversations."
       );
@@ -167,6 +169,91 @@ export default function Messages() {
   useEffect(() => {
     loadMessagingData();
   }, [user?.id]);
+
+  /*
+   * IMPORTANT:
+   * Fetch real users directly from Supabase.
+   * This avoids relying only on the initial profiles
+   * state when starting a new conversation.
+   */
+  useEffect(() => {
+    if (!showNewMessage || !user?.id) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function searchRealUsers() {
+      setUsersLoading(true);
+
+      const query = searchUsers.trim();
+
+      let request = supabase
+        .from("profiles")
+        .select("*")
+        .neq("id", user.id)
+        .order("created_at", {
+          ascending: true,
+        })
+        .limit(30);
+
+      if (query) {
+        request = request.or(
+          `username.ilike.%${query}%,display_name.ilike.%${query}%`
+        );
+      }
+
+      const { data, error } = await request;
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error(
+          "User search error:",
+          error
+        );
+
+        setError(
+          "Couldn't search users."
+        );
+
+        setUsersLoading(false);
+        return;
+      }
+
+      setProfiles((current) => {
+        const merged = [...current];
+
+        (data || []).forEach((profile) => {
+          const exists = merged.some(
+            (item) => item.id === profile.id
+          );
+
+          if (!exists) {
+            merged.push(profile);
+          }
+        });
+
+        return merged;
+      });
+
+      setUsersLoading(false);
+    }
+
+    const timer = setTimeout(
+      searchRealUsers,
+      150
+    );
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    showNewMessage,
+    searchUsers,
+    user?.id,
+  ]);
 
   const profileMap = useMemo(() => {
     const map = {};
@@ -225,10 +312,14 @@ export default function Messages() {
           otherUserId,
           profile: otherProfile,
           messages: conversationMessages,
-          preview: lastMessage?.content || "No messages yet.",
+          preview:
+            lastMessage?.content ||
+            "No messages yet.",
           time: lastMessage
             ? formatTime(lastMessage.created_at)
-            : formatTime(conversation.created_at),
+            : formatTime(
+                conversation.created_at
+              ),
         };
       })
       .filter(Boolean);
@@ -247,7 +338,9 @@ export default function Messages() {
     ) || null;
 
   const filteredConversations = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = search
+      .trim()
+      .toLowerCase();
 
     if (!query) {
       return conversationData;
@@ -276,11 +369,15 @@ export default function Messages() {
   }, [conversationData, search]);
 
   const availableUsers = useMemo(() => {
-    const query =
-      searchUsers.trim().toLowerCase();
+    const query = searchUsers
+      .trim()
+      .toLowerCase();
 
     return profiles
-      .filter((profile) => profile.id !== user?.id)
+      .filter(
+        (profile) =>
+          profile.id !== user?.id
+      )
       .filter((profile) => {
         if (!query) return true;
 
@@ -293,12 +390,17 @@ export default function Messages() {
             .includes(query)
         );
       });
-  }, [profiles, searchUsers, user?.id]);
+  }, [
+    profiles,
+    searchUsers,
+    user?.id,
+  ]);
 
   function selectConversation(id) {
     setSelectedId(id);
     setShowNewMessage(false);
     setSearchUsers("");
+    setError("");
   }
 
   async function startConversation(otherUser) {
@@ -308,18 +410,24 @@ export default function Messages() {
 
     setError("");
 
+    /*
+     * Check whether a conversation already exists
+     * between these two real users.
+     */
     const existingMembership =
-      memberships.find(
-        (membership) =>
-          membership.user_id === user.id &&
-          memberships.some(
-            (otherMembership) =>
-              otherMembership.conversation_id ===
-                membership.conversation_id &&
-              otherMembership.user_id ===
-                otherUser.id
-          )
-      );
+      memberships.find((membership) => {
+        if (membership.user_id !== user.id) {
+          return false;
+        }
+
+        return memberships.some(
+          (otherMembership) =>
+            otherMembership.conversation_id ===
+              membership.conversation_id &&
+            otherMembership.user_id ===
+              otherUser.id
+        );
+      });
 
     if (existingMembership) {
       selectConversation(
@@ -328,12 +436,14 @@ export default function Messages() {
       return;
     }
 
-    const { data: conversation, error: conversationError } =
-      await supabase
-        .from("conversations")
-        .insert({})
-        .select()
-        .single();
+    const {
+      data: conversation,
+      error: conversationError,
+    } = await supabase
+      .from("conversations")
+      .insert({})
+      .select()
+      .single();
 
     if (conversationError) {
       console.error(
@@ -342,7 +452,8 @@ export default function Messages() {
       );
 
       setError(
-        "Couldn't start the conversation."
+        conversationError.message ||
+          "Couldn't start the conversation."
       );
 
       return;
@@ -353,11 +464,13 @@ export default function Messages() {
         .from("conversation_members")
         .insert([
           {
-            conversation_id: conversation.id,
+            conversation_id:
+              conversation.id,
             user_id: user.id,
           },
           {
-            conversation_id: conversation.id,
+            conversation_id:
+              conversation.id,
             user_id: otherUser.id,
           },
         ]);
@@ -374,7 +487,8 @@ export default function Messages() {
         .eq("id", conversation.id);
 
       setError(
-        "Couldn't create the conversation."
+        membersError.message ||
+          "Couldn't create the conversation."
       );
 
       return;
@@ -419,17 +533,19 @@ export default function Messages() {
     setSending(true);
     setError("");
 
-    const { data, error: sendError } =
-      await supabase
-        .from("messages")
-        .insert({
-          conversation_id:
-            selectedConversation.id,
-          sender_id: user.id,
-          content: cleanMessage,
-        })
-        .select()
-        .single();
+    const {
+      data,
+      error: sendError,
+    } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id:
+          selectedConversation.id,
+        sender_id: user.id,
+        content: cleanMessage,
+      })
+      .select()
+      .single();
 
     if (sendError) {
       console.error(
@@ -458,7 +574,10 @@ export default function Messages() {
   return (
     <section className="messages-page">
       <div className="messages-layout">
+
+        {/* LEFT SIDEBAR */}
         <aside className="messages-sidebar">
+
           <div className="messages-toolbar">
             <button
               type="button"
@@ -466,6 +585,8 @@ export default function Messages() {
               onClick={() => {
                 setShowNewMessage(true);
                 setSelectedId(null);
+                setSearchUsers("");
+                setError("");
               }}
               aria-label="New message"
             >
@@ -479,7 +600,9 @@ export default function Messages() {
                 type="search"
                 value={search}
                 onChange={(event) =>
-                  setSearch(event.target.value)
+                  setSearch(
+                    event.target.value
+                  )
                 }
                 placeholder="Search conversations"
                 aria-label="Search conversations"
@@ -489,14 +612,18 @@ export default function Messages() {
 
           {showNewMessage ? (
             <div className="new-message-panel">
+
               <div className="new-message-heading">
-                <strong>New message</strong>
+                <strong>
+                  New message
+                </strong>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowNewMessage(false)
-                  }
+                  onClick={() => {
+                    setShowNewMessage(false);
+                    setSearchUsers("");
+                  }}
                 >
                   Cancel
                 </button>
@@ -512,53 +639,74 @@ export default function Messages() {
                   )
                 }
                 placeholder="Search people"
+                aria-label="Search people"
                 autoFocus
               />
 
               <div className="new-message-users">
-                {availableUsers.length === 0 ? (
+
+                {usersLoading ? (
                   <div className="chat-search-empty">
-                    No other users found.
+                    Searching people...
+                  </div>
+                ) : availableUsers.length === 0 ? (
+                  <div className="chat-search-empty">
+                    <strong>
+                      No other users found.
+                    </strong>
+
+                    <span>
+                      Try another name or username.
+                    </span>
                   </div>
                 ) : (
-                  availableUsers.map((profile) => (
-                    <button
-                      type="button"
-                      className="new-message-user"
-                      key={profile.id}
-                      onClick={() =>
-                        startConversation(profile)
-                      }
-                    >
-                      <Avatar
-                        name={getDisplayName(
-                          profile
-                        )}
-                        size="sm"
-                        src={
-                          profile.avatar_url ||
-                          undefined
+                  availableUsers.map(
+                    (profile) => (
+                      <button
+                        type="button"
+                        className="new-message-user"
+                        key={profile.id}
+                        onClick={() =>
+                          startConversation(
+                            profile
+                          )
                         }
-                      />
-
-                      <span>
-                        <strong>
-                          {getDisplayName(
+                      >
+                        <Avatar
+                          name={getDisplayName(
                             profile
                           )}
-                        </strong>
+                          size="sm"
+                          src={
+                            profile.avatar_url ||
+                            undefined
+                          }
+                        />
 
-                        <small>
-                          @{getUsername(profile)}
-                        </small>
-                      </span>
-                    </button>
-                  ))
+                        <span>
+                          <strong>
+                            {getDisplayName(
+                              profile
+                            )}
+                          </strong>
+
+                          <small>
+                            @
+                            {getUsername(
+                              profile
+                            )}
+                          </small>
+                        </span>
+                      </button>
+                    )
+                  )
                 )}
+
               </div>
             </div>
           ) : (
             <div className="conversation-list">
+
               {loading ? (
                 <div className="chat-search-empty">
                   Loading conversations...
@@ -566,7 +714,10 @@ export default function Messages() {
               ) : filteredConversations.length ===
                 0 ? (
                 <div className="chat-search-empty">
-                  <strong>No conversations yet.</strong>
+                  <strong>
+                    No conversations yet.
+                  </strong>
+
                   <span>
                     Start a conversation with
                     another member.
@@ -628,13 +779,18 @@ export default function Messages() {
                   }
                 )
               )}
+
             </div>
           )}
+
         </aside>
 
+        {/* RIGHT CHAT */}
         {selectedConversation ? (
           <section className="conversation-panel">
+
             <header className="conversation-header">
+
               <button
                 type="button"
                 className="chat-back"
@@ -653,7 +809,8 @@ export default function Messages() {
                 size="sm"
                 src={
                   selectedConversation.profile
-                    .avatar_url || undefined
+                    .avatar_url ||
+                  undefined
                 }
               />
 
@@ -679,9 +836,11 @@ export default function Messages() {
               >
                 ···
               </button>
+
             </header>
 
             <div className="conversation-messages">
+
               <div className="conversation-start">
                 <Avatar
                   name={getDisplayName(
@@ -690,7 +849,8 @@ export default function Messages() {
                   size="lg"
                   src={
                     selectedConversation.profile
-                      .avatar_url || undefined
+                      .avatar_url ||
+                    undefined
                   }
                 />
 
@@ -713,13 +873,16 @@ export default function Messages() {
                   <div
                     key={item.id}
                     className={
-                      item.sender_id === user?.id
+                      item.sender_id ===
+                      user?.id
                         ? "message-row mine"
                         : "message-row"
                     }
                   >
                     <div className="message-bubble">
-                      <p>{item.content}</p>
+                      <p>
+                        {item.content}
+                      </p>
 
                       <time>
                         {formatMessageTime(
@@ -747,6 +910,7 @@ export default function Messages() {
                   </span>
                 </div>
               )}
+
             </div>
 
             {error && (
@@ -763,7 +927,9 @@ export default function Messages() {
                 type="text"
                 value={message}
                 onChange={(event) =>
-                  setMessage(event.target.value)
+                  setMessage(
+                    event.target.value
+                  )
                 }
                 placeholder={`Message ${getDisplayName(
                   selectedConversation.profile
@@ -777,46 +943,51 @@ export default function Messages() {
               <button
                 type="submit"
                 disabled={
-                  !message.trim() || sending
+                  !message.trim() ||
+                  sending
                 }
                 aria-label="Send message"
               >
                 {sending ? "…" : "↗"}
               </button>
             </form>
+
           </section>
         ) : (
           <section className="conversation-panel conversation-empty-panel">
+
             <div className="conversation-empty">
+
               <div className="conversation-empty-mark">
                 S
               </div>
 
               <strong>
-                {showNewMessage
-                  ? "Find someone to message."
-                  : "Your messages live here."}
+                Find someone to message.
               </strong>
 
               <span>
-                {showNewMessage
-                  ? "Choose a real member to start a conversation."
-                  : "Select a conversation or start a new one."}
+                Choose a real member to start
+                a conversation.
               </span>
 
               {!showNewMessage && (
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowNewMessage(true)
-                  }
+                  onClick={() => {
+                    setShowNewMessage(true);
+                    setSearchUsers("");
+                  }}
                 >
                   New message
                 </button>
               )}
+
             </div>
+
           </section>
         )}
+
       </div>
     </section>
   );
