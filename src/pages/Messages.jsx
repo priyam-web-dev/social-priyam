@@ -66,12 +66,6 @@ export default function Messages() {
 
   const [error, setError] = useState("");
 
-  /*
-   * ========================================================
-   * LOAD MESSAGING DATA
-   * ========================================================
-   */
-
   async function loadMessagingData() {
     if (!user?.id) {
       return;
@@ -164,11 +158,12 @@ export default function Messages() {
   }, [user?.id]);
 
   /*
-   * ========================================================
-   * REAL USER SEARCH
-   * ========================================================
+   * Search real users from Supabase.
+   *
+   * IMPORTANT:
+   * The results are later restricted to users who already
+   * have a conversation with the current user.
    */
-
   useEffect(() => {
     if (!showNewMessage || !user?.id) {
       return;
@@ -249,12 +244,6 @@ export default function Messages() {
     user?.id,
   ]);
 
-  /*
-   * ========================================================
-   * PROFILE MAP
-   * ========================================================
-   */
-
   const profileMap = useMemo(() => {
     const map = {};
 
@@ -266,16 +255,12 @@ export default function Messages() {
   }, [profiles]);
 
   /*
-   * ========================================================
-   * BUILD CONVERSATIONS
+   * Build exactly ONE UI item per conversation.
    *
-   * IMPORTANT:
-   * A conversation has two membership rows.
-   * We therefore build one UI conversation per
-   * conversation ID instead of mapping every membership row.
-   * ========================================================
+   * A conversation has multiple membership rows,
+   * so we must never map memberships directly into
+   * sidebar items.
    */
-
   const conversationData = useMemo(() => {
     if (!user?.id) {
       return [];
@@ -359,19 +344,18 @@ export default function Messages() {
     return Array.from(
       uniqueConversations.values()
     ).sort((a, b) => {
-      const aTime = new Date(
+      const aLast =
         a.messages[a.messages.length - 1]
-          ?.created_at ||
-          a.createdAt
-      ).getTime();
+          ?.created_at || a.createdAt;
 
-      const bTime = new Date(
+      const bLast =
         b.messages[b.messages.length - 1]
-          ?.created_at ||
-          b.createdAt
-      ).getTime();
+          ?.created_at || b.createdAt;
 
-      return bTime - aTime;
+      return (
+        new Date(bLast).getTime() -
+        new Date(aLast).getTime()
+      );
     });
   }, [
     memberships,
@@ -381,23 +365,11 @@ export default function Messages() {
     user?.id,
   ]);
 
-  /*
-   * ========================================================
-   * SELECTED CONVERSATION
-   * ========================================================
-   */
-
   const selectedConversation =
     conversationData.find(
       (conversation) =>
         conversation.id === selectedId
     ) || null;
-
-  /*
-   * ========================================================
-   * CONVERSATION SEARCH
-   * ========================================================
-   */
 
   const filteredConversations = useMemo(() => {
     const query = search
@@ -434,17 +406,54 @@ export default function Messages() {
   ]);
 
   /*
-   * ========================================================
-   * AVAILABLE USERS
-   * ========================================================
+   * ONLY users with an existing conversation are
+   * allowed to appear in the New Message suggestions.
+   *
+   * This removes random/unmessaged users.
    */
+  const availableUsers = useMemo(() => {
+    const query = searchUsers
+      .trim()
+      .toLowerCase();
 
+    const conversationUserIds =
+      new Set(
+        conversationData.map(
+          (conversation) =>
+            conversation.otherUserId
+        )
+      );
 
-  /*
-   * ========================================================
-   * SELECT CONVERSATION
-   * ========================================================
-   */
+    return profiles
+      .filter(
+        (profile) =>
+          profile.id !== user?.id
+      )
+      .filter((profile) =>
+        conversationUserIds.has(
+          profile.id
+        )
+      )
+      .filter((profile) => {
+        if (!query) {
+          return true;
+        }
+
+        return (
+          getDisplayName(profile)
+            .toLowerCase()
+            .includes(query) ||
+          getUsername(profile)
+            .toLowerCase()
+            .includes(query)
+        );
+      });
+  }, [
+    profiles,
+    conversationData,
+    searchUsers,
+    user?.id,
+  ]);
 
   function selectConversation(id) {
     setSelectedId(id);
@@ -454,12 +463,6 @@ export default function Messages() {
     setMessage("");
   }
 
-  /*
-   * ========================================================
-   * START NEW CONVERSATION
-   * ========================================================
-   */
-
   async function startConversation(otherUser) {
     if (!user?.id || !otherUser?.id) {
       return;
@@ -467,6 +470,31 @@ export default function Messages() {
 
     setError("");
 
+    /*
+     * First use the conversation already loaded
+     * in the frontend.
+     *
+     * This prevents unnecessary RPC calls.
+     */
+    const existingConversation =
+      conversationData.find(
+        (conversation) =>
+          conversation.otherUserId ===
+          otherUser.id
+      );
+
+    if (existingConversation) {
+      selectConversation(
+        existingConversation.id
+      );
+      return;
+    }
+
+    /*
+     * Safety fallback:
+     * create_conversation() handles the database-side
+     * create/reuse logic.
+     */
     try {
       const {
         data: conversationId,
@@ -517,12 +545,6 @@ export default function Messages() {
       );
     }
   }
-
-  /*
-   * ========================================================
-   * SEND MESSAGE
-   * ========================================================
-   */
 
   async function sendMessage(event) {
     event.preventDefault();
@@ -581,17 +603,9 @@ export default function Messages() {
     setSending(false);
   }
 
-  /*
-   * ========================================================
-   * RENDER
-   * ========================================================
-   */
-
   return (
     <section className="messages-page">
       <div className="messages-layout">
-
-        {/* LEFT SIDEBAR */}
 
         <aside className="messages-sidebar">
 
@@ -674,16 +688,18 @@ export default function Messages() {
                     Searching people...
                   </div>
 
-                ) : availableUsers.length === 0 ? (
+                ) : availableUsers.length ===
+                  0 ? (
 
                   <div className="chat-search-empty">
 
                     <strong>
-                      No other users found.
+                      No existing conversations.
                     </strong>
 
                     <span>
-                      Try another name or username.
+                      Only people you've already
+                      messaged appear here.
                     </span>
 
                   </div>
@@ -843,8 +859,6 @@ export default function Messages() {
 
         </aside>
 
-        {/* RIGHT CHAT */}
-
         {selectedConversation ? (
 
           <section className="conversation-panel">
@@ -938,7 +952,8 @@ export default function Messages() {
                   <div
                     key={item.id}
                     className={
-                      item.sender_id === user?.id
+                      item.sender_id ===
+                      user?.id
                         ? "message-row mine"
                         : "message-row"
                     }
@@ -1044,8 +1059,8 @@ export default function Messages() {
               </strong>
 
               <span>
-                Choose a real member to start
-                a conversation.
+                Choose an existing conversation
+                to continue chatting.
               </span>
 
               {error && (
@@ -1055,7 +1070,6 @@ export default function Messages() {
               )}
 
               {!showNewMessage && (
-
                 <button
                   type="button"
                   onClick={() => {
@@ -1066,7 +1080,6 @@ export default function Messages() {
                 >
                   New message
                 </button>
-
               )}
 
             </div>
