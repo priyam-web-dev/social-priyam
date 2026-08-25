@@ -5,7 +5,11 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
 function getDisplayName(profile) {
-  return profile?.display_name || profile?.username || "User";
+  return (
+    profile?.display_name ||
+    profile?.username ||
+    "User"
+  );
 }
 
 function getUsername(profile) {
@@ -18,7 +22,10 @@ function formatTime(dateString) {
   const date = new Date(dateString);
   const now = new Date();
 
-  const diff = Math.max(0, now.getTime() - date.getTime());
+  const diff = Math.max(
+    0,
+    now.getTime() - date.getTime()
+  );
 
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
@@ -57,19 +64,20 @@ export default function Messages() {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
 
-  const [showNewMessage, setShowNewMessage] = useState(false);
+  const [showNewMessage, setShowNewMessage] =
+    useState(false);
+
   const [searchUsers, setSearchUsers] = useState("");
 
   const [loading, setLoading] = useState(true);
-  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersLoading, setUsersLoading] =
+    useState(false);
   const [sending, setSending] = useState(false);
 
   const [error, setError] = useState("");
 
   async function loadMessagingData() {
-    if (!user?.id) {
-      return;
-    }
+    if (!user?.id) return;
 
     setLoading(true);
     setError("");
@@ -87,6 +95,8 @@ export default function Messages() {
           ascending: true,
         }),
 
+      // Load every membership belonging to conversations
+      // the current user is part of. RLS handles the privacy boundary.
       supabase
         .from("conversation_members")
         .select("*"),
@@ -140,14 +150,18 @@ export default function Messages() {
       conversationsResult.error ||
       messagesResult.error
     ) {
-      setError("Couldn't load your conversations.");
+      setError(
+        "Couldn't load your conversations."
+      );
       setLoading(false);
       return;
     }
 
     setProfiles(profilesResult.data || []);
     setMemberships(membershipsResult.data || []);
-    setConversations(conversationsResult.data || []);
+    setConversations(
+      conversationsResult.data || []
+    );
     setMessages(messagesResult.data || []);
 
     setLoading(false);
@@ -157,6 +171,12 @@ export default function Messages() {
     loadMessagingData();
   }, [user?.id]);
 
+  /*
+   * IMPORTANT:
+   * Fetch real users directly from Supabase.
+   * This avoids relying only on the initial profiles
+   * state when starting a new conversation.
+   */
   useEffect(() => {
     if (!showNewMessage || !user?.id) {
       return;
@@ -184,22 +204,21 @@ export default function Messages() {
         );
       }
 
-      const { data, error: searchError } =
-        await request;
+      const { data, error } = await request;
 
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
 
-      if (searchError) {
+      if (error) {
         console.error(
           "User search error:",
-          searchError
+          error
         );
 
-        setError("Couldn't search users.");
-        setUsersLoading(false);
+        setError(
+          "Couldn't search users."
+        );
 
+        setUsersLoading(false);
         return;
       }
 
@@ -247,117 +266,64 @@ export default function Messages() {
     return map;
   }, [profiles]);
 
-  /*
-   * IMPORTANT:
-   *
-   * A conversation is shown ONLY when it contains
-   * at least one real message.
-   *
-   * Empty conversations created in
-   * conversation_members are ignored completely.
-   */
   const conversationData = useMemo(() => {
-    if (!user?.id) {
-      return [];
-    }
+    return memberships
+      .map((membership) => {
+        const conversation =
+          conversations.find(
+            (item) =>
+              item.id === membership.conversation_id
+          );
 
-    const uniqueConversations = new Map();
+        if (!conversation) return null;
 
-    conversations.forEach((conversation) => {
-      const conversationMemberships =
-        memberships.filter(
-          (membership) =>
-            membership.conversation_id ===
-            conversation.id
-        );
-
-      const memberIds =
-        conversationMemberships.map(
-          (membership) => membership.user_id
-        );
-
-      if (!memberIds.includes(user.id)) {
-        return;
-      }
-
-      const otherUserId = memberIds.find(
-        (id) => id !== user.id
-      );
-
-      if (!otherUserId) {
-        return;
-      }
-
-      const otherProfile =
-        profileMap[otherUserId];
-
-      if (!otherProfile) {
-        return;
-      }
-
-      const conversationMessages =
-        messages
+        const memberIds = memberships
           .filter(
             (item) =>
               item.conversation_id ===
-              conversation.id
+              membership.conversation_id
           )
-          .sort(
-            (a, b) =>
-              new Date(a.created_at).getTime() -
-              new Date(b.created_at).getTime()
+          .map((item) => item.user_id);
+
+        const otherUserId = memberIds.find(
+          (id) => id !== user.id
+        );
+
+        if (!otherUserId) return null;
+
+        const otherProfile =
+          profileMap[otherUserId];
+
+        if (!otherProfile) return null;
+
+        const conversationMessages =
+          messages.filter(
+            (item) =>
+              item.conversation_id ===
+              conversation.id
           );
 
-      /*
-       * THIS IS THE IMPORTANT FIX.
-       *
-       * If nobody has actually sent a message,
-       * this conversation does NOT exist from the
-       * user's UI perspective.
-       */
-      if (conversationMessages.length === 0) {
-        return;
-      }
+        const lastMessage =
+          conversationMessages[
+            conversationMessages.length - 1
+          ];
 
-      const lastMessage =
-        conversationMessages[
-          conversationMessages.length - 1
-        ];
-
-      uniqueConversations.set(
-        conversation.id,
-        {
+        return {
           id: conversation.id,
           otherUserId,
           profile: otherProfile,
           messages: conversationMessages,
           preview:
-            lastMessage.content || "",
-          time: formatTime(
-            lastMessage.created_at
-          ),
-          createdAt:
-            conversation.created_at,
-        }
-      );
-    });
-
-    return Array.from(
-      uniqueConversations.values()
-    ).sort((a, b) => {
-      const aLast =
-        a.messages[a.messages.length - 1]
-          ?.created_at;
-
-      const bLast =
-        b.messages[b.messages.length - 1]
-          ?.created_at;
-
-      return (
-        new Date(bLast).getTime() -
-        new Date(aLast).getTime()
-      );
-    });
+            lastMessage?.content ||
+            "No messages yet.",
+          time: lastMessage
+            ? formatTime(lastMessage.created_at)
+            : formatTime(
+                conversation.created_at
+              ),
+        };
+      })
+      .filter(Boolean);
   }, [
     memberships,
     conversations,
@@ -401,45 +367,50 @@ export default function Messages() {
         );
       }
     );
-  }, [
-    conversationData,
-    search,
-  ]);
+  }, [conversationData, search]);
 
-  /*
-   * ONLY users with an actual message history
-   * appear in the New Message picker.
-   *
-   * Empty conversations are automatically excluded
-   * because conversationData excludes them.
-   */
   const availableUsers = useMemo(() => {
     const query = searchUsers
       .trim()
       .toLowerCase();
 
-    const conversationUserIds =
-      new Set(
-        conversationData.map(
-          (conversation) =>
-            conversation.otherUserId
+    // Only show people with whom the current user has actually exchanged
+    // at least one message. This keeps the New message picker clean and
+    // prevents untouched accounts from appearing as suggestions.
+    const messagedUserIds = new Set();
+
+    memberships.forEach((membership) => {
+      if (membership.user_id !== user?.id) return;
+
+      const conversationId = membership.conversation_id;
+      const otherMemberIds = memberships
+        .filter(
+          (item) =>
+            item.conversation_id === conversationId &&
+            item.user_id !== user?.id
         )
+        .map((item) => item.user_id);
+
+      const hasMessages = messages.some(
+        (item) =>
+          item.conversation_id === conversationId
       );
+
+      if (hasMessages) {
+        otherMemberIds.forEach((id) =>
+          messagedUserIds.add(id)
+        );
+      }
+    });
 
     return profiles
       .filter(
         (profile) =>
-          profile.id !== user?.id
-      )
-      .filter((profile) =>
-        conversationUserIds.has(
-          profile.id
-        )
+          profile.id !== user?.id &&
+          messagedUserIds.has(profile.id)
       )
       .filter((profile) => {
-        if (!query) {
-          return true;
-        }
+        if (!query) return true;
 
         return (
           getDisplayName(profile)
@@ -452,7 +423,8 @@ export default function Messages() {
       });
   }, [
     profiles,
-    conversationData,
+    memberships,
+    messages,
     searchUsers,
     user?.id,
   ]);
@@ -462,7 +434,6 @@ export default function Messages() {
     setShowNewMessage(false);
     setSearchUsers("");
     setError("");
-    setMessage("");
   }
 
   async function startConversation(otherUser) {
@@ -472,77 +443,116 @@ export default function Messages() {
 
     setError("");
 
-    const existingConversation =
-      conversationData.find(
-        (conversation) =>
-          conversation.otherUserId ===
-          otherUser.id
+    /*
+     * Check whether a conversation already exists
+     * between these two real users.
+     */
+    const existingMembership =
+      memberships.find((membership) => {
+        if (membership.user_id !== user.id) {
+          return false;
+        }
+
+        return memberships.some(
+          (otherMembership) =>
+            otherMembership.conversation_id ===
+              membership.conversation_id &&
+            otherMembership.user_id ===
+              otherUser.id
+        );
+      });
+
+    if (existingMembership) {
+      selectConversation(
+        existingMembership.conversation_id
+      );
+      return;
+    }
+
+    const {
+      data: conversation,
+      error: conversationError,
+    } = await supabase
+      .from("conversations")
+      .insert({})
+      .select()
+      .single();
+
+    if (conversationError) {
+      console.error(
+        "Conversation creation failed:",
+        conversationError
       );
 
-    if (existingConversation) {
-      selectConversation(
-        existingConversation.id
+      setError(
+        conversationError.message ||
+          "Couldn't start the conversation."
       );
 
       return;
     }
 
-    try {
-      const {
-        data: conversationId,
-        error: conversationError,
-      } = await supabase.rpc(
-        "create_conversation",
-        {
-          p_recipient_id: otherUser.id,
-        }
-      );
+    const { error: membersError } =
+      await supabase
+        .from("conversation_members")
+        .insert([
+          {
+            conversation_id:
+              conversation.id,
+            user_id: user.id,
+          },
+          {
+            conversation_id:
+              conversation.id,
+            user_id: otherUser.id,
+          },
+        ]);
 
-      if (conversationError) {
-        console.error(
-          "Conversation RPC failed:",
-          conversationError
-        );
-
-        setError(
-          conversationError.message ||
-            "Couldn't start the conversation."
-        );
-
-        return;
-      }
-
-      if (!conversationId) {
-        setError(
-          "Conversation could not be created."
-        );
-
-        return;
-      }
-
-      await loadMessagingData();
-
-      setShowNewMessage(false);
-      setSearchUsers("");
-      setSelectedId(conversationId);
-    } catch (rpcError) {
+    if (membersError) {
       console.error(
-        "Unexpected conversation error:",
-        rpcError
+        "Conversation members failed:",
+        membersError
       );
+
+      await supabase
+        .from("conversations")
+        .delete()
+        .eq("id", conversation.id);
 
       setError(
-        rpcError?.message ||
-          "Couldn't start the conversation."
+        membersError.message ||
+          "Couldn't create the conversation."
       );
+
+      return;
     }
+
+    setConversations((current) => [
+      conversation,
+      ...current,
+    ]);
+
+    setMemberships((current) => [
+      ...current,
+      {
+        conversation_id: conversation.id,
+        user_id: user.id,
+      },
+      {
+        conversation_id: conversation.id,
+        user_id: otherUser.id,
+      },
+    ]);
+
+    setShowNewMessage(false);
+    setSearchUsers("");
+    setSelectedId(conversation.id);
   }
 
   async function sendMessage(event) {
     event.preventDefault();
 
-    const cleanMessage =
-      message.trim();
+    const cleanMessage = message.trim();
 
     if (
       !cleanMessage ||
@@ -582,7 +592,6 @@ export default function Messages() {
       );
 
       setSending(false);
-
       return;
     }
 
@@ -599,10 +608,10 @@ export default function Messages() {
     <section className="messages-page">
       <div className="messages-layout">
 
+        {/* LEFT SIDEBAR */}
         <aside className="messages-sidebar">
 
           <div className="messages-toolbar">
-
             <button
               type="button"
               className="new-message-button"
@@ -618,7 +627,6 @@ export default function Messages() {
             </button>
 
             <label className="messages-search">
-
               <span>⌕</span>
 
               <input
@@ -632,17 +640,13 @@ export default function Messages() {
                 placeholder="Search conversations"
                 aria-label="Search conversations"
               />
-
             </label>
-
           </div>
 
           {showNewMessage ? (
-
             <div className="new-message-panel">
 
               <div className="new-message-heading">
-
                 <strong>
                   New message
                 </strong>
@@ -652,12 +656,10 @@ export default function Messages() {
                   onClick={() => {
                     setShowNewMessage(false);
                     setSearchUsers("");
-                    setError("");
                   }}
                 >
                   Cancel
                 </button>
-
               </div>
 
               <input
@@ -677,32 +679,22 @@ export default function Messages() {
               <div className="new-message-users">
 
                 {usersLoading ? (
-
                   <div className="chat-search-empty">
                     Searching people...
                   </div>
-
-                ) : availableUsers.length ===
-                  0 ? (
-
+                ) : availableUsers.length === 0 ? (
                   <div className="chat-search-empty">
-
                     <strong>
-                      No people to show.
+                      No other users found.
                     </strong>
 
                     <span>
-                      Only people you have already
-                      messaged appear here.
+                      Try another name or username.
                     </span>
-
                   </div>
-
                 ) : (
-
                   availableUsers.map(
                     (profile) => (
-
                       <button
                         type="button"
                         className="new-message-user"
@@ -713,7 +705,6 @@ export default function Messages() {
                           )
                         }
                       >
-
                         <Avatar
                           name={getDisplayName(
                             profile
@@ -726,7 +717,6 @@ export default function Messages() {
                         />
 
                         <span>
-
                           <strong>
                             {getDisplayName(
                               profile
@@ -739,35 +729,24 @@ export default function Messages() {
                               profile
                             )}
                           </small>
-
                         </span>
-
                       </button>
-
                     )
                   )
-
                 )}
 
               </div>
-
             </div>
-
           ) : (
-
             <div className="conversation-list">
 
               {loading ? (
-
                 <div className="chat-search-empty">
                   Loading conversations...
                 </div>
-
               ) : filteredConversations.length ===
                 0 ? (
-
                 <div className="chat-search-empty">
-
                   <strong>
                     No conversations yet.
                   </strong>
@@ -776,14 +755,10 @@ export default function Messages() {
                     Start a conversation with
                     another member.
                   </span>
-
                 </div>
-
               ) : (
-
                 filteredConversations.map(
                   (conversation) => {
-
                     const profile =
                       conversation.profile;
 
@@ -803,9 +778,7 @@ export default function Messages() {
                           )
                         }
                       >
-
                         <div className="conversation-avatar">
-
                           <Avatar
                             name={getDisplayName(
                               profile
@@ -815,11 +788,9 @@ export default function Messages() {
                               undefined
                             }
                           />
-
                         </div>
 
                         <span className="conversation-copy">
-
                           <strong>
                             {getDisplayName(
                               profile
@@ -829,32 +800,26 @@ export default function Messages() {
                           <small>
                             {conversation.preview}
                           </small>
-
                         </span>
 
                         <span className="conversation-meta">
-
                           <time>
                             {conversation.time}
                           </time>
-
                         </span>
-
                       </button>
                     );
                   }
                 )
-
               )}
 
             </div>
-
           )}
 
         </aside>
 
+        {/* RIGHT CHAT */}
         {selectedConversation ? (
-
           <section className="conversation-panel">
 
             <header className="conversation-header">
@@ -883,7 +848,6 @@ export default function Messages() {
               />
 
               <div>
-
                 <strong>
                   {getDisplayName(
                     selectedConversation.profile
@@ -896,7 +860,6 @@ export default function Messages() {
                     selectedConversation.profile
                   )}
                 </span>
-
               </div>
 
               <button
@@ -912,7 +875,6 @@ export default function Messages() {
             <div className="conversation-messages">
 
               <div className="conversation-start">
-
                 <Avatar
                   name={getDisplayName(
                     selectedConversation.profile
@@ -937,12 +899,10 @@ export default function Messages() {
                     selectedConversation.profile
                   )}
                 </span>
-
               </div>
 
               {selectedConversation.messages.map(
                 (item) => (
-
                   <div
                     key={item.id}
                     className={
@@ -952,9 +912,7 @@ export default function Messages() {
                         : "message-row"
                     }
                   >
-
                     <div className="message-bubble">
-
                       <p>
                         {item.content}
                       </p>
@@ -964,12 +922,26 @@ export default function Messages() {
                           item.created_at
                         )}
                       </time>
-
                     </div>
-
                   </div>
-
                 )
+              )}
+
+              {selectedConversation.messages.length ===
+                0 && (
+                <div className="chat-empty">
+                  <strong>
+                    Start the conversation.
+                  </strong>
+
+                  <span>
+                    Send a message to{" "}
+                    {getDisplayName(
+                      selectedConversation.profile
+                    )}
+                    .
+                  </span>
+                </div>
               )}
 
             </div>
@@ -984,15 +956,22 @@ export default function Messages() {
               className="message-composer"
               onSubmit={sendMessage}
             >
-
-              <input
-                type="text"
+              <textarea
                 value={message}
                 onChange={(event) =>
                   setMessage(
                     event.target.value
                   )
                 }
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                  ) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
                 placeholder={`Message ${getDisplayName(
                   selectedConversation.profile
                 )}...`}
@@ -1000,6 +979,7 @@ export default function Messages() {
                   selectedConversation.profile
                 )}`}
                 maxLength={2000}
+                rows={1}
               />
 
               <button
@@ -1012,13 +992,10 @@ export default function Messages() {
               >
                 {sending ? "…" : "↗"}
               </button>
-
             </form>
 
           </section>
-
         ) : (
-
           <section className="conversation-panel conversation-empty-panel">
 
             <div className="conversation-empty">
@@ -1032,8 +1009,8 @@ export default function Messages() {
               </strong>
 
               <span>
-                Choose an existing conversation
-                to continue chatting.
+                Choose a real member to start
+                a conversation.
               </span>
 
               {error && (
@@ -1058,7 +1035,6 @@ export default function Messages() {
             </div>
 
           </section>
-
         )}
 
       </div>
