@@ -5,11 +5,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
 function getDisplayName(profile) {
-  return (
-    profile?.display_name ||
-    profile?.username ||
-    "User"
-  );
+  return profile?.display_name || profile?.username || "User";
 }
 
 function getUsername(profile) {
@@ -22,10 +18,7 @@ function formatTime(dateString) {
   const date = new Date(dateString);
   const now = new Date();
 
-  const diff = Math.max(
-    0,
-    now.getTime() - date.getTime()
-  );
+  const diff = Math.max(0, now.getTime() - date.getTime());
 
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
@@ -64,14 +57,11 @@ export default function Messages() {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
 
-  const [showNewMessage, setShowNewMessage] =
-    useState(false);
-
+  const [showNewMessage, setShowNewMessage] = useState(false);
   const [searchUsers, setSearchUsers] = useState("");
 
   const [loading, setLoading] = useState(true);
-  const [usersLoading, setUsersLoading] =
-    useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
   const [error, setError] = useState("");
@@ -95,8 +85,6 @@ export default function Messages() {
           ascending: true,
         }),
 
-      // Load every membership belonging to conversations
-      // the current user is part of. RLS handles the privacy boundary.
       supabase
         .from("conversation_members")
         .select("*"),
@@ -117,17 +105,11 @@ export default function Messages() {
     ]);
 
     if (profilesResult.error) {
-      console.error(
-        "Profiles error:",
-        profilesResult.error
-      );
+      console.error("Profiles error:", profilesResult.error);
     }
 
     if (membershipsResult.error) {
-      console.error(
-        "Membership error:",
-        membershipsResult.error
-      );
+      console.error("Membership error:", membershipsResult.error);
     }
 
     if (conversationsResult.error) {
@@ -138,10 +120,7 @@ export default function Messages() {
     }
 
     if (messagesResult.error) {
-      console.error(
-        "Messages error:",
-        messagesResult.error
-      );
+      console.error("Messages error:", messagesResult.error);
     }
 
     if (
@@ -150,18 +129,14 @@ export default function Messages() {
       conversationsResult.error ||
       messagesResult.error
     ) {
-      setError(
-        "Couldn't load your conversations."
-      );
+      setError("Couldn't load your conversations.");
       setLoading(false);
       return;
     }
 
     setProfiles(profilesResult.data || []);
     setMemberships(membershipsResult.data || []);
-    setConversations(
-      conversationsResult.data || []
-    );
+    setConversations(conversationsResult.data || []);
     setMessages(messagesResult.data || []);
 
     setLoading(false);
@@ -172,10 +147,7 @@ export default function Messages() {
   }, [user?.id]);
 
   /*
-   * IMPORTANT:
-   * Fetch real users directly from Supabase.
-   * This avoids relying only on the initial profiles
-   * state when starting a new conversation.
+   * Search real users directly from Supabase.
    */
   useEffect(() => {
     if (!showNewMessage || !user?.id) {
@@ -209,15 +181,9 @@ export default function Messages() {
       if (cancelled) return;
 
       if (error) {
-        console.error(
-          "User search error:",
-          error
-        );
+        console.error("User search error:", error);
 
-        setError(
-          "Couldn't search users."
-        );
-
+        setError("Couldn't search users.");
         setUsersLoading(false);
         return;
       }
@@ -241,20 +207,13 @@ export default function Messages() {
       setUsersLoading(false);
     }
 
-    const timer = setTimeout(
-      searchRealUsers,
-      150
-    );
+    const timer = setTimeout(searchRealUsers, 150);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [
-    showNewMessage,
-    searchUsers,
-    user?.id,
-  ]);
+  }, [showNewMessage, searchUsers, user?.id]);
 
   const profileMap = useMemo(() => {
     const map = {};
@@ -269,19 +228,16 @@ export default function Messages() {
   const conversationData = useMemo(() => {
     return memberships
       .map((membership) => {
-        const conversation =
-          conversations.find(
-            (item) =>
-              item.id === membership.conversation_id
-          );
+        const conversation = conversations.find(
+          (item) => item.id === membership.conversation_id
+        );
 
         if (!conversation) return null;
 
         const memberIds = memberships
           .filter(
             (item) =>
-              item.conversation_id ===
-              membership.conversation_id
+              item.conversation_id === membership.conversation_id
           )
           .map((item) => item.user_id);
 
@@ -291,17 +247,14 @@ export default function Messages() {
 
         if (!otherUserId) return null;
 
-        const otherProfile =
-          profileMap[otherUserId];
+        const otherProfile = profileMap[otherUserId];
 
         if (!otherProfile) return null;
 
-        const conversationMessages =
-          messages.filter(
-            (item) =>
-              item.conversation_id ===
-              conversation.id
-          );
+        const conversationMessages = messages.filter(
+          (item) =>
+            item.conversation_id === conversation.id
+        );
 
         const lastMessage =
           conversationMessages[
@@ -314,13 +267,10 @@ export default function Messages() {
           profile: otherProfile,
           messages: conversationMessages,
           preview:
-            lastMessage?.content ||
-            "No messages yet.",
+            lastMessage?.content || "No messages yet.",
           time: lastMessage
             ? formatTime(lastMessage.created_at)
-            : formatTime(
-                conversation.created_at
-              ),
+            : formatTime(conversation.created_at),
         };
       })
       .filter(Boolean);
@@ -334,51 +284,41 @@ export default function Messages() {
 
   const selectedConversation =
     conversationData.find(
-      (conversation) =>
-        conversation.id === selectedId
+      (conversation) => conversation.id === selectedId
     ) || null;
 
   const filteredConversations = useMemo(() => {
-    const query = search
-      .trim()
-      .toLowerCase();
+    const query = search.trim().toLowerCase();
 
     if (!query) {
       return conversationData;
     }
 
-    return conversationData.filter(
-      (conversation) => {
-        const name = getDisplayName(
-          conversation.profile
-        ).toLowerCase();
+    return conversationData.filter((conversation) => {
+      const name = getDisplayName(
+        conversation.profile
+      ).toLowerCase();
 
-        const handle = getUsername(
-          conversation.profile
-        ).toLowerCase();
+      const handle = getUsername(
+        conversation.profile
+      ).toLowerCase();
 
-        const preview =
-          conversation.preview.toLowerCase();
+      const preview =
+        conversation.preview.toLowerCase();
 
-        return (
-          name.includes(query) ||
-          handle.includes(query) ||
-          preview.includes(query)
-        );
-      }
-    );
+      return (
+        name.includes(query) ||
+        handle.includes(query) ||
+        preview.includes(query)
+      );
+    });
   }, [conversationData, search]);
 
   const availableUsers = useMemo(() => {
-    const query = searchUsers
-      .trim()
-      .toLowerCase();
+    const query = searchUsers.trim().toLowerCase();
 
     return profiles
-      .filter(
-        (profile) =>
-          profile.id !== user?.id
-      )
+      .filter((profile) => profile.id !== user?.id)
       .filter((profile) => {
         if (!query) return true;
 
@@ -391,11 +331,7 @@ export default function Messages() {
             .includes(query)
         );
       });
-  }, [
-    profiles,
-    searchUsers,
-    user?.id,
-  ]);
+  }, [profiles, searchUsers, user?.id]);
 
   function selectConversation(id) {
     setSelectedId(id);
@@ -404,6 +340,15 @@ export default function Messages() {
     setError("");
   }
 
+  /*
+   * IMPORTANT:
+   *
+   * Do NOT directly insert into conversations or
+   * conversation_members from the browser.
+   *
+   * The Supabase SECURITY DEFINER RPC creates/reuses
+   * the conversation and adds both members safely.
+   */
   async function startConversation(otherUser) {
     if (!user?.id || !otherUser?.id) {
       return;
@@ -411,110 +356,57 @@ export default function Messages() {
 
     setError("");
 
-    /*
-     * Check whether a conversation already exists
-     * between these two real users.
-     */
-    const existingMembership =
-      memberships.find((membership) => {
-        if (membership.user_id !== user.id) {
-          return false;
-        }
-
-        return memberships.some(
-          (otherMembership) =>
-            otherMembership.conversation_id ===
-              membership.conversation_id &&
-            otherMembership.user_id ===
-              otherUser.id
-        );
+    try {
+      const {
+        data: conversationId,
+        error: conversationError,
+      } = await supabase.rpc("create_conversation", {
+        p_recipient_id: otherUser.id,
       });
 
-    if (existingMembership) {
-      selectConversation(
-        existingMembership.conversation_id
-      );
-      return;
-    }
+      if (conversationError) {
+        console.error(
+          "Conversation RPC failed:",
+          conversationError
+        );
 
-    const {
-      data: conversation,
-      error: conversationError,
-    } = await supabase
-      .from("conversations")
-      .insert({})
-      .select()
-      .single();
+        setError(
+          conversationError.message ||
+            "Couldn't start the conversation."
+        );
 
-    if (conversationError) {
+        return;
+      }
+
+      if (!conversationId) {
+        setError(
+          "Conversation could not be created."
+        );
+
+        return;
+      }
+
+      /*
+       * Reload everything from Supabase so the newly
+       * created conversation and both memberships are
+       * reflected in the UI.
+       */
+      await loadMessagingData();
+
+      setShowNewMessage(false);
+      setSearchUsers("");
+      setSelectedId(conversationId);
+    } catch (rpcError) {
       console.error(
-        "Conversation creation failed:",
-        conversationError
+        "Unexpected conversation error:",
+        rpcError
       );
 
       setError(
-        conversationError.message ||
+        rpcError?.message ||
           "Couldn't start the conversation."
       );
-
-      return;
     }
-
-    const { error: membersError } =
-      await supabase
-        .from("conversation_members")
-        .insert([
-          {
-            conversation_id:
-              conversation.id,
-            user_id: user.id,
-          },
-          {
-            conversation_id:
-              conversation.id,
-            user_id: otherUser.id,
-          },
-        ]);
-
-    if (membersError) {
-      console.error(
-        "Conversation members failed:",
-        membersError
-      );
-
-      await supabase
-        .from("conversations")
-        .delete()
-        .eq("id", conversation.id);
-
-      setError(
-        membersError.message ||
-          "Couldn't create the conversation."
-      );
-
-      return;
-    }
-
-    setConversations((current) => [
-      conversation,
-      ...current,
-    ]);
-
-    setMemberships((current) => [
-      ...current,
-      {
-        conversation_id: conversation.id,
-        user_id: user.id,
-      },
-      {
-        conversation_id: conversation.id,
-        user_id: otherUser.id,
-      },
-    ]);
-
-    setShowNewMessage(false);
-    setSearchUsers("");
-    setSelectedId(conversation.id);
   }
 
   async function sendMessage(event) {
@@ -540,8 +432,7 @@ export default function Messages() {
     } = await supabase
       .from("messages")
       .insert({
-        conversation_id:
-          selectedConversation.id,
+        conversation_id: selectedConversation.id,
         sender_id: user.id,
         content: cleanMessage,
       })
@@ -601,9 +492,7 @@ export default function Messages() {
                 type="search"
                 value={search}
                 onChange={(event) =>
-                  setSearch(
-                    event.target.value
-                  )
+                  setSearch(event.target.value)
                 }
                 placeholder="Search conversations"
                 aria-label="Search conversations"
@@ -624,6 +513,7 @@ export default function Messages() {
                   onClick={() => {
                     setShowNewMessage(false);
                     setSearchUsers("");
+                    setError("");
                   }}
                 >
                   Cancel
@@ -661,49 +551,39 @@ export default function Messages() {
                     </span>
                   </div>
                 ) : (
-                  availableUsers.map(
-                    (profile) => (
-                      <button
-                        type="button"
-                        className="new-message-user"
-                        key={profile.id}
-                        onClick={() =>
-                          startConversation(
-                            profile
-                          )
+                  availableUsers.map((profile) => (
+                    <button
+                      type="button"
+                      className="new-message-user"
+                      key={profile.id}
+                      onClick={() =>
+                        startConversation(profile)
+                      }
+                    >
+                      <Avatar
+                        name={getDisplayName(profile)}
+                        size="sm"
+                        src={
+                          profile.avatar_url ||
+                          undefined
                         }
-                      >
-                        <Avatar
-                          name={getDisplayName(
-                            profile
-                          )}
-                          size="sm"
-                          src={
-                            profile.avatar_url ||
-                            undefined
-                          }
-                        />
+                      />
 
-                        <span>
-                          <strong>
-                            {getDisplayName(
-                              profile
-                            )}
-                          </strong>
+                      <span>
+                        <strong>
+                          {getDisplayName(profile)}
+                        </strong>
 
-                          <small>
-                            @
-                            {getUsername(
-                              profile
-                            )}
-                          </small>
-                        </span>
-                      </button>
-                    )
-                  )
+                        <small>
+                          @{getUsername(profile)}
+                        </small>
+                      </span>
+                    </button>
+                  ))
                 )}
 
               </div>
+
             </div>
           ) : (
             <div className="conversation-list">
@@ -712,8 +592,7 @@ export default function Messages() {
                 <div className="chat-search-empty">
                   Loading conversations...
                 </div>
-              ) : filteredConversations.length ===
-                0 ? (
+              ) : filteredConversations.length === 0 ? (
                 <div className="chat-search-empty">
                   <strong>
                     No conversations yet.
@@ -735,8 +614,7 @@ export default function Messages() {
                         key={conversation.id}
                         type="button"
                         className={
-                          conversation.id ===
-                          selectedId
+                          conversation.id === selectedId
                             ? "conversation active"
                             : "conversation"
                         }
@@ -748,9 +626,7 @@ export default function Messages() {
                       >
                         <div className="conversation-avatar">
                           <Avatar
-                            name={getDisplayName(
-                              profile
-                            )}
+                            name={getDisplayName(profile)}
                             src={
                               profile.avatar_url ||
                               undefined
@@ -760,9 +636,7 @@ export default function Messages() {
 
                         <span className="conversation-copy">
                           <strong>
-                            {getDisplayName(
-                              profile
-                            )}
+                            {getDisplayName(profile)}
                           </strong>
 
                           <small>
@@ -810,8 +684,7 @@ export default function Messages() {
                 size="sm"
                 src={
                   selectedConversation.profile
-                    .avatar_url ||
-                  undefined
+                    .avatar_url || undefined
                 }
               />
 
@@ -823,8 +696,7 @@ export default function Messages() {
                 </strong>
 
                 <span>
-                  @
-                  {getUsername(
+                  @{getUsername(
                     selectedConversation.profile
                   )}
                 </span>
@@ -850,8 +722,7 @@ export default function Messages() {
                   size="lg"
                   src={
                     selectedConversation.profile
-                      .avatar_url ||
-                    undefined
+                      .avatar_url || undefined
                   }
                 />
 
@@ -862,8 +733,7 @@ export default function Messages() {
                 </strong>
 
                 <span>
-                  @
-                  {getUsername(
+                  @{getUsername(
                     selectedConversation.profile
                   )}
                 </span>
@@ -874,8 +744,7 @@ export default function Messages() {
                   <div
                     key={item.id}
                     className={
-                      item.sender_id ===
-                      user?.id
+                      item.sender_id === user?.id
                         ? "message-row mine"
                         : "message-row"
                     }
@@ -895,8 +764,7 @@ export default function Messages() {
                 )
               )}
 
-              {selectedConversation.messages.length ===
-                0 && (
+              {selectedConversation.messages.length === 0 && (
                 <div className="chat-empty">
                   <strong>
                     Start the conversation.
@@ -928,9 +796,7 @@ export default function Messages() {
                 type="text"
                 value={message}
                 onChange={(event) =>
-                  setMessage(
-                    event.target.value
-                  )
+                  setMessage(event.target.value)
                 }
                 placeholder={`Message ${getDisplayName(
                   selectedConversation.profile
@@ -944,8 +810,7 @@ export default function Messages() {
               <button
                 type="submit"
                 disabled={
-                  !message.trim() ||
-                  sending
+                  !message.trim() || sending
                 }
                 aria-label="Send message"
               >
