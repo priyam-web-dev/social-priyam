@@ -3,21 +3,9 @@ import Avatar from "./Avatar";
 import { supabase } from "../lib/supabase";
 
 const trends = [
-  {
-    id: 1,
-    tag: "#technology",
-    posts: "1.8K posts",
-  },
-  {
-    id: 2,
-    tag: "#design",
-    posts: "940 posts",
-  },
-  {
-    id: 3,
-    tag: "#music",
-    posts: "782 posts",
-  },
+  { id: 1, tag: "#technology", posts: "1.8K posts" },
+  { id: 2, tag: "#design", posts: "940 posts" },
+  { id: 3, tag: "#music", posts: "782 posts" },
 ];
 
 export default function RightRail() {
@@ -40,82 +28,43 @@ export default function RightRail() {
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
-        console.error("Could not get current user:", userError);
-        setPeople([]);
-        return;
-      }
-
-      if (!user) {
+      if (userError || !user) {
+        if (userError) console.error("Could not get current user:", userError);
         setPeople([]);
         return;
       }
 
       setCurrentUser(user);
 
-      /*
-       * Load real profiles.
-       *
-       * Expected profiles columns:
-       * id
-       * username
-       * display_name
-       * avatar_url
-       */
-
-      const {
-        data: profiles,
-        error: profileError,
-      } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url")
-        .neq("id", user.id)
-        .order("display_name", {
-          ascending: true,
-        })
-        .limit(3);
+      const [{ data: profiles, error: profileError }, { data: follows, error: followsError }] =
+        await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id, username, display_name, avatar_url")
+            .neq("id", user.id)
+            .order("display_name", { ascending: true })
+            .limit(3),
+          supabase
+            .from("follows")
+            .select("following_id")
+            .eq("follower_id", user.id),
+        ]);
 
       if (profileError) {
-        console.error(
-          "Could not load profiles:",
-          profileError
-        );
+        console.error("Could not load profiles:", profileError);
         setPeople([]);
       } else {
         setPeople(profiles || []);
       }
 
-      /*
-       * Load the accounts the current user already follows.
-       */
-
-      const {
-        data: follows,
-        error: followsError,
-      } = await supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", user.id);
-
       if (followsError) {
-        console.error(
-          "Could not load follows:",
-          followsError
-        );
+        console.error("Could not load follows:", followsError);
         setFollowing([]);
       } else {
-        setFollowing(
-          (follows || []).map(
-            (item) => item.following_id
-          )
-        );
+        setFollowing((follows || []).map((item) => item.following_id));
       }
     } catch (error) {
-      console.error(
-        "Unexpected RightRail error:",
-        error
-      );
-
+      console.error("Unexpected RightRail error:", error);
       setPeople([]);
       setFollowing([]);
     } finally {
@@ -124,13 +73,9 @@ export default function RightRail() {
   }
 
   async function toggleFollow(personId) {
-    if (!currentUser || followLoading === personId) {
-      return;
-    }
+    if (!currentUser || followLoading === personId) return;
 
-    const alreadyFollowing =
-      following.includes(personId);
-
+    const alreadyFollowing = following.includes(personId);
     setFollowLoading(personId);
 
     try {
@@ -141,48 +86,26 @@ export default function RightRail() {
           .eq("follower_id", currentUser.id)
           .eq("following_id", personId);
 
-        if (error) {
-          throw error;
-        }
-
-        setFollowing((current) =>
-          current.filter(
-            (id) => id !== personId
-          )
-        );
+        if (error) throw error;
+        setFollowing((current) => current.filter((id) => id !== personId));
       } else {
-        const { error } = await supabase
-          .from("follows")
-          .insert({
-            follower_id: currentUser.id,
-            following_id: personId,
-          });
+        const { error } = await supabase.from("follows").insert({
+          follower_id: currentUser.id,
+          following_id: personId,
+        });
 
-        if (error) {
-          throw error;
-        }
-
-        setFollowing((current) => [
-          ...current,
-          personId,
-        ]);
+        if (error) throw error;
+        setFollowing((current) => [...current, personId]);
       }
     } catch (error) {
-      console.error(
-        "Follow action failed:",
-        error
-      );
+      console.error("Follow action failed:", error);
     } finally {
       setFollowLoading(null);
     }
   }
 
   function getPersonName(person) {
-    return (
-      person.display_name ||
-      person.username ||
-      "User"
-    );
+    return person.display_name || person.username || "User";
   }
 
   function getPersonHandle(person) {
@@ -194,62 +117,30 @@ export default function RightRail() {
       <section className="rail-section">
         <div className="rail-heading">
           <h2>People to know</h2>
-
-          <button
-            type="button"
-            onClick={loadPeople}
-          >
-            Refresh
-          </button>
+          <button type="button" onClick={loadPeople}>Refresh</button>
         </div>
 
         {loadingPeople ? (
-          <div className="rail-empty">
-            <span>Finding people...</span>
-          </div>
+          <div className="rail-empty"><span>Finding people...</span></div>
         ) : people.length > 0 ? (
           people.map((person) => {
-            const isFollowing =
-              following.includes(person.id);
-
-            const name =
-              getPersonName(person);
-
-            const handle =
-              getPersonHandle(person);
+            const isFollowing = following.includes(person.id);
+            const name = getPersonName(person);
+            const handle = getPersonHandle(person);
 
             return (
-              <div
-                className="follow-row"
-                key={person.id}
-              >
-                <Avatar
-                  name={name}
-                  src={person.avatar_url}
-                />
-
+              <div className="follow-row" key={person.id}>
+                <Avatar name={name} src={person.avatar_url} />
                 <span>
                   <strong>{name}</strong>
-
-                  <small>
-                    @{handle}
-                  </small>
+                  <small>@{handle}</small>
                 </span>
-
                 <button
                   type="button"
-                  disabled={
-                    followLoading === person.id
-                  }
-                  onClick={() =>
-                    toggleFollow(person.id)
-                  }
+                  disabled={followLoading === person.id}
+                  onClick={() => toggleFollow(person.id)}
                 >
-                  {followLoading === person.id
-                    ? "..."
-                    : isFollowing
-                    ? "Following"
-                    : "Follow"}
+                  {followLoading === person.id ? "..." : isFollowing ? "Following" : "Follow"}
                 </button>
               </div>
             );
@@ -257,11 +148,7 @@ export default function RightRail() {
         ) : (
           <div className="rail-empty">
             <strong>No one to show yet.</strong>
-
-            <span>
-              New people will appear here as
-              they join.
-            </span>
+            <span>New people will appear here as they join.</span>
           </div>
         )}
       </section>
@@ -269,15 +156,7 @@ export default function RightRail() {
       <section className="rail-section">
         <div className="rail-heading">
           <h2>What's moving</h2>
-
-          <button
-            type="button"
-            onClick={() =>
-              (window.location.href = "/explore")
-            }
-          >
-            Explore
-          </button>
+          <button type="button" onClick={() => (window.location.href = "/explore")}>Explore</button>
         </div>
 
         {trends.map((trend, index) => (
@@ -286,30 +165,19 @@ export default function RightRail() {
             className="trend"
             key={trend.id}
             onClick={() =>
-              (window.location.href = `/explore?topic=${encodeURIComponent(
-                trend.tag
-              )}`)
+              (window.location.href = `/explore?topic=${encodeURIComponent(trend.tag)}`)
             }
           >
-            <small>
-              0{index + 1} · TRENDING
-            </small>
-
+            <small>0{index + 1} · TRENDING</small>
             <strong>{trend.tag}</strong>
-
             <small>{trend.posts}</small>
           </button>
         ))}
       </section>
 
       <section className="rail-note">
-        <span>SOCIAL / 01</span>
-
-        <p>
-          A small place for people,
-          ideas and whatever happens
-          between them.
-        </p>
+        <span>QYVRA / 01</span>
+        <p>A small place for people, ideas and whatever happens between them.</p>
       </section>
 
       <footer className="rail-footer">

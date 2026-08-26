@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Avatar from "../components/Avatar";
 import { supabase } from "../lib/supabase";
@@ -75,6 +75,8 @@ export default function Messages() {
   const [sending, setSending] = useState(false);
 
   const [error, setError] = useState("");
+  const hasInitializedSelection = useRef(false);
+  const messagesContainerRef = useRef(null);
 
   async function loadMessagingData() {
     if (!user?.id) return;
@@ -169,6 +171,10 @@ export default function Messages() {
 
   useEffect(() => {
     loadMessagingData();
+  }, [user?.id]);
+
+  useEffect(() => {
+    hasInitializedSelection.current = false;
   }, [user?.id]);
 
   /*
@@ -267,63 +273,94 @@ export default function Messages() {
   }, [profiles]);
 
   const conversationData = useMemo(() => {
-    return memberships
-      .map((membership) => {
-        const conversation =
-          conversations.find(
-            (item) =>
-              item.id === membership.conversation_id
-          );
+    const grouped = new Map();
 
-        if (!conversation) return null;
+    memberships.forEach((membership) => {
+      const conversation = conversations.find(
+        (item) => item.id === membership.conversation_id
+      );
 
-        const memberIds = memberships
-          .filter(
-            (item) =>
-              item.conversation_id ===
-              membership.conversation_id
-          )
-          .map((item) => item.user_id);
+      if (!conversation) return;
 
-        const otherUserId = memberIds.find(
-          (id) => id !== user.id
+      const memberIds = memberships
+        .filter(
+          (item) =>
+            item.conversation_id === membership.conversation_id
+        )
+        .map((item) => item.user_id);
+
+      const otherUserId = memberIds.find((id) => id !== user.id);
+      if (!otherUserId) return;
+
+      const otherProfile = profileMap[otherUserId];
+      if (!otherProfile) return;
+
+      const conversationMessages = messages
+        .filter((item) => item.conversation_id === conversation.id)
+        .sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime()
         );
 
-        if (!otherUserId) return null;
+      const lastMessage =
+        conversationMessages[conversationMessages.length - 1];
 
-        const otherProfile =
-          profileMap[otherUserId];
+      const activityAt = lastMessage?.created_at || conversation.created_at;
+      const candidate = {
+        id: conversation.id,
+        otherUserId,
+        profile: otherProfile,
+        messages: conversationMessages,
+        preview: lastMessage?.content || "No messages yet.",
+        time: lastMessage
+          ? formatTime(lastMessage.created_at)
+          : formatTime(conversation.created_at),
+        activityAt,
+      };
 
-        if (!otherProfile) return null;
+      const existing = grouped.get(otherUserId);
 
-        const conversationMessages =
-          messages.filter(
-            (item) =>
-              item.conversation_id ===
-              conversation.id
-          );
+      if (!existing) {
+        grouped.set(otherUserId, candidate);
+        return;
+      }
 
-        const lastMessage =
-          conversationMessages[
-            conversationMessages.length - 1
-          ];
+      const existingActivity = new Date(existing.activityAt).getTime();
+      const candidateActivity = new Date(candidate.activityAt).getTime();
+      const latest = candidateActivity >= existingActivity ? candidate : existing;
 
-        return {
-          id: conversation.id,
-          otherUserId,
-          profile: otherProfile,
-          messages: conversationMessages,
-          preview:
-            lastMessage?.content ||
-            "No messages yet.",
-          time: lastMessage
-            ? formatTime(lastMessage.created_at)
-            : formatTime(
-                conversation.created_at
-              ),
-        };
-      })
-      .filter(Boolean);
+      const mergedMessages = [...existing.messages, ...candidate.messages]
+        .reduce((unique, item) => {
+          if (!unique.some((message) => message.id === item.id)) {
+            unique.push(item);
+          }
+          return unique;
+        }, [])
+        .sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime()
+        );
+
+      const mergedLastMessage = mergedMessages[mergedMessages.length - 1];
+
+      grouped.set(otherUserId, {
+        ...latest,
+        messages: mergedMessages,
+        preview: mergedLastMessage?.content || "No messages yet.",
+        time: mergedLastMessage
+          ? formatTime(mergedLastMessage.created_at)
+          : formatTime(latest.activityAt),
+        activityAt: mergedLastMessage?.created_at || latest.activityAt,
+      });
+    });
+
+    return Array.from(grouped.values()).sort(
+      (a, b) =>
+        new Date(b.activityAt).getTime() -
+        new Date(a.activityAt).getTime()
+    );
   }, [
     memberships,
     conversations,
@@ -337,6 +374,28 @@ export default function Messages() {
       (conversation) =>
         conversation.id === selectedId
     ) || null;
+
+  useEffect(() => {
+    if (
+      !loading &&
+      !showNewMessage &&
+      !selectedId &&
+      conversationData.length > 0 &&
+      !hasInitializedSelection.current
+    ) {
+      setSelectedId(conversationData[0].id);
+      hasInitializedSelection.current = true;
+    }
+  }, [conversationData, loading, selectedId, showNewMessage]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container || !selectedConversation) return;
+
+    requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight;
+    });
+  }, [selectedId, selectedConversation?.messages.length]);
 
   const filteredConversations = useMemo(() => {
     const query = search
@@ -370,64 +429,19 @@ export default function Messages() {
   }, [conversationData, search]);
 
   const availableUsers = useMemo(() => {
-    const query = searchUsers
-      .trim()
-      .toLowerCase();
-
-    // Only show people with whom the current user has actually exchanged
-    // at least one message. This keeps the New message picker clean and
-    // prevents untouched accounts from appearing as suggestions.
-    const messagedUserIds = new Set();
-
-    memberships.forEach((membership) => {
-      if (membership.user_id !== user?.id) return;
-
-      const conversationId = membership.conversation_id;
-      const otherMemberIds = memberships
-        .filter(
-          (item) =>
-            item.conversation_id === conversationId &&
-            item.user_id !== user?.id
-        )
-        .map((item) => item.user_id);
-
-      const hasMessages = messages.some(
-        (item) =>
-          item.conversation_id === conversationId
-      );
-
-      if (hasMessages) {
-        otherMemberIds.forEach((id) =>
-          messagedUserIds.add(id)
-        );
-      }
-    });
+    const query = searchUsers.trim().toLowerCase();
 
     return profiles
-      .filter(
-        (profile) =>
-          profile.id !== user?.id &&
-          messagedUserIds.has(profile.id)
-      )
+      .filter((profile) => profile.id !== user?.id)
       .filter((profile) => {
         if (!query) return true;
 
         return (
-          getDisplayName(profile)
-            .toLowerCase()
-            .includes(query) ||
-          getUsername(profile)
-            .toLowerCase()
-            .includes(query)
+          getDisplayName(profile).toLowerCase().includes(query) ||
+          getUsername(profile).toLowerCase().includes(query)
         );
       });
-  }, [
-    profiles,
-    memberships,
-    messages,
-    searchUsers,
-    user?.id,
-  ]);
+  }, [profiles, searchUsers, user?.id]);
 
   function selectConversation(id) {
     setSelectedId(id);
@@ -447,25 +461,12 @@ export default function Messages() {
      * Check whether a conversation already exists
      * between these two real users.
      */
-    const existingMembership =
-      memberships.find((membership) => {
-        if (membership.user_id !== user.id) {
-          return false;
-        }
+    const existingConversation = conversationData.find(
+      (conversation) => conversation.otherUserId === otherUser.id
+    );
 
-        return memberships.some(
-          (otherMembership) =>
-            otherMembership.conversation_id ===
-              membership.conversation_id &&
-            otherMembership.user_id ===
-              otherUser.id
-        );
-      });
-
-    if (existingMembership) {
-      selectConversation(
-        existingMembership.conversation_id
-      );
+    if (existingConversation) {
+      selectConversation(existingConversation.id);
       return;
     }
 
@@ -872,7 +873,7 @@ export default function Messages() {
 
             </header>
 
-            <div className="conversation-messages">
+            <div ref={messagesContainerRef} className="conversation-messages">
 
               <div className="conversation-start">
                 <Avatar
