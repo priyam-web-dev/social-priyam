@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-import Avatar from "../components/Avatar";
 import { supabase } from "../lib/supabase";
 
 function getFallbackName(user) {
@@ -32,6 +31,56 @@ function getFallbackAvatar(user) {
     user?.user_metadata?.avatar_url ||
     user?.user_metadata?.picture ||
     ""
+  );
+}
+
+function ProfileSquare({ name = "User", src = "", size = 92, className = "", responsive = false }) {
+  const initial =
+    (name || "U").trim().charAt(0).toUpperCase() || "U";
+  const dimension = responsive ? "100%" : `${size}px`;
+
+  return (
+    <div
+      className={className}
+      style={{
+        width: dimension,
+        height: dimension,
+        minWidth: responsive ? "0" : dimension,
+        minHeight: responsive ? "0" : dimension,
+        aspectRatio: "1 / 1",
+        overflow: "hidden",
+        display: "grid",
+        placeItems: "center",
+        borderRadius: "8px",
+        border: "1px solid var(--text)",
+        background: "var(--accent)",
+        color: "#fff",
+        fontFamily: "var(--display-font)",
+        fontSize: responsive
+          ? "clamp(28px, 10vw, 52px)"
+          : `${Math.max(18, Math.round(size * 0.29))}px`,
+        fontWeight: 700,
+        lineHeight: 1,
+      }}
+    >
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          style={{
+            display: "block",
+            width: "100%",
+            height: "100%",
+            minWidth: "100%",
+            minHeight: "100%",
+            objectFit: "cover",
+            objectPosition: "center center",
+          }}
+        />
+      ) : (
+        initial
+      )}
+    </div>
   );
 }
 
@@ -682,13 +731,10 @@ function ProfilePage({ user }) {
 
       <section className="profile-header">
         <div className="profile-avatar-wrap">
-          <Avatar
+          <ProfileSquare
             name={displayProfile.name}
-            size="lg"
-            src={
-              displayProfile.avatarUrl ||
-              undefined
-            }
+            size={92}
+            src={displayProfile.avatarUrl || ""}
           />
 
           <span
@@ -902,14 +948,20 @@ function ProfilePage({ user }) {
               onSubmit={saveProfile}
             >
               <div className="profile-edit-avatar-section">
-                <div className="profile-edit-avatar">
-                  <Avatar
+                <div
+                  className="profile-edit-avatar"
+                  style={{
+                    width: "min(180px, 100%)",
+                    aspectRatio: "1 / 1",
+                    overflow: "hidden",
+                    flex: "0 0 auto",
+                  }}
+                >
+                  <ProfileSquare
                     name={editName || "User"}
-                    size="lg"
-                    src={
-                      avatarPreview ||
-                      undefined
-                    }
+                    responsive
+                    src={avatarPreview || ""}
+                    className="profile-edit-avatar-image"
                   />
                 </div>
 
