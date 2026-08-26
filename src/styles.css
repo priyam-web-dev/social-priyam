@@ -10390,3 +10390,697 @@ textarea {
     bottom: 10px !important;
   }
 }
+
+
+/* =========================================================
+   QYVRA / TOP NAV V2
+   Direction: Top navigation + focused feed + discovery rail
+   No JSX changes required: repositions the existing sidebar nav.
+========================================================= */
+
+:root {
+  --qyvra-red: #ff1f1f;
+  --qyvra-red-dark: #d90000;
+  --qyvra-black: #000000;
+  --qyvra-white: #ffffff;
+  --qyvra-ink: #111111;
+  --qyvra-muted: #686868;
+
+  --accent: var(--qyvra-red) !important;
+  --accent-dark: var(--qyvra-red-dark) !important;
+  --accent-soft: #ffe1e1 !important;
+  --display-font: "SNEAKER", system-ui, sans-serif !important;
+  --body-font: "SNEAKER", system-ui, sans-serif !important;
+  --mono-font: "SNEAKER", system-ui, sans-serif !important;
+}
+
+:root[data-theme="dark"] {
+  --bg: #000000 !important;
+  --surface: #050505 !important;
+  --surface-2: #111111 !important;
+  --text: #ffffff !important;
+  --muted: #bcbcbc !important;
+  --line: #444444 !important;
+  --line-strong: #777777 !important;
+  --accent: var(--qyvra-red) !important;
+  --accent-dark: var(--qyvra-red-dark) !important;
+  --accent-soft: #2a0000 !important;
+}
+
+:root:not([data-theme="dark"]) {
+  --bg: #ffffff !important;
+  --surface: #ffffff !important;
+  --surface-2: #f3f3f3 !important;
+  --text: #000000 !important;
+  --muted: #666666 !important;
+  --line: #d8d8d8 !important;
+  --line-strong: #999999 !important;
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+}
+
+body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* ---------- Header ---------- */
+
+.topbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  height: 78px !important;
+  padding: 0 max(24px, calc((100vw - 1480px) / 2)) !important;
+  border-bottom: 2px solid var(--accent) !important;
+  background: var(--bg) !important;
+}
+
+.wordmark {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-size: 24px !important;
+  letter-spacing: -0.06em !important;
+}
+
+.wordmark b {
+  width: 38px !important;
+  height: 38px !important;
+  border: 2px solid var(--qyvra-black) !important;
+  border-radius: 8px !important;
+  background: var(--accent) !important;
+  color: var(--qyvra-white) !important;
+  box-shadow: 4px 4px 0 var(--qyvra-black) !important;
+  transition: transform .16s ease, box-shadow .16s ease !important;
+}
+
+:root[data-theme="dark"] .wordmark b {
+  border-color: var(--qyvra-white) !important;
+  box-shadow: 4px 4px 0 var(--qyvra-white) !important;
+}
+
+.wordmark:hover b {
+  transform: translate(-2px, -2px) rotate(-2deg) !important;
+  box-shadow: 7px 7px 0 var(--qyvra-black) !important;
+}
+
+:root[data-theme="dark"] .wordmark:hover b {
+  box-shadow: 7px 7px 0 var(--qyvra-white) !important;
+}
+
+/* ---------- Existing sidebar becomes horizontal top navigation ---------- */
+
+.sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 101 !important;
+  width: 100% !important;
+  height: 78px !important;
+  min-height: 78px !important;
+  padding: 0 !important;
+  display: block !important;
+  pointer-events: none !important;
+  background: transparent !important;
+}
+
+.side-nav {
+  position: absolute !important;
+  top: 0 !important;
+  left: max(330px, calc((100vw - 1480px) / 2 + 250px)) !important;
+  right: 390px !important;
+  height: 78px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  pointer-events: auto !important;
+}
+
+.side-nav a {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  min-height: 42px !important;
+  padding: 0 13px !important;
+  border: 1px solid transparent !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: var(--text) !important;
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  text-decoration: none !important;
+  transition: background .15s ease, color .15s ease, border-color .15s ease, transform .15s ease !important;
+}
+
+.side-nav a::before {
+  display: none !important;
+}
+
+.side-nav a span {
+  width: auto !important;
+  font-size: 13px !important;
+  opacity: .9 !important;
+}
+
+.side-nav a:hover {
+  transform: translateY(-1px) !important;
+  border-color: var(--text) !important;
+  background: var(--surface-2) !important;
+}
+
+.side-nav a.active {
+  border-color: var(--accent) !important;
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  box-shadow: 3px 3px 0 var(--qyvra-black) !important;
+}
+
+:root[data-theme="dark"] .side-nav a.active {
+  box-shadow: 3px 3px 0 var(--qyvra-white) !important;
+}
+
+/* Create becomes a strong header CTA */
+
+.sidebar .create-button {
+  position: absolute !important;
+  top: 20px !important;
+  right: max(250px, calc((100vw - 1480px) / 2 + 160px)) !important;
+  width: 104px !important;
+  height: 38px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 2px solid var(--qyvra-black) !important;
+  border-radius: 7px !important;
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  box-shadow: 4px 4px 0 var(--qyvra-black) !important;
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  pointer-events: auto !important;
+}
+
+:root[data-theme="dark"] .sidebar .create-button {
+  border-color: var(--qyvra-white) !important;
+  box-shadow: 4px 4px 0 var(--qyvra-white) !important;
+}
+
+.sidebar .create-button:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 6px 6px 0 var(--qyvra-black) !important;
+}
+
+:root[data-theme="dark"] .sidebar .create-button:hover {
+  box-shadow: 6px 6px 0 var(--qyvra-white) !important;
+}
+
+/* Account card becomes irrelevant in top-nav mode */
+
+.sidebar .account-card {
+  display: none !important;
+}
+
+/* ---------- Header utility controls ---------- */
+
+.topbar-actions {
+  position: relative !important;
+  z-index: 110 !important;
+  gap: 8px !important;
+}
+
+.search-trigger,
+.plain-icon,
+.profile-trigger {
+  border: 2px solid var(--text) !important;
+  border-radius: 7px !important;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  box-shadow: 3px 3px 0 var(--qyvra-black) !important;
+}
+
+:root[data-theme="dark"] .search-trigger,
+:root[data-theme="dark"] .plain-icon,
+:root[data-theme="dark"] .profile-trigger {
+  border-color: var(--qyvra-white) !important;
+  box-shadow: 3px 3px 0 var(--qyvra-white) !important;
+}
+
+.search-trigger:hover,
+.plain-icon:hover,
+.profile-trigger:hover {
+  transform: translate(-1px, -1px) !important;
+  border-color: var(--accent) !important;
+  background: var(--surface-2) !important;
+  box-shadow: 4px 4px 0 var(--accent) !important;
+}
+
+/* ---------- Content starts below the navigation ---------- */
+
+.page-grid {
+  width: min(1480px, calc(100% - 48px)) !important;
+  grid-template-columns: minmax(0, 840px) 300px !important;
+  justify-content: center !important;
+  gap: 52px !important;
+  padding-top: 70px !important;
+}
+
+.main-column {
+  min-width: 0 !important;
+  padding-top: 36px !important;
+}
+
+.right-rail {
+  padding-top: 36px !important;
+}
+
+/* ---------- Feed controls become the secondary navigation ---------- */
+
+.feed-switcher {
+  gap: 0 !important;
+  margin-bottom: 18px !important;
+  border-bottom: 2px solid var(--text) !important;
+}
+
+.feed-switch {
+  min-height: 44px !important;
+  padding: 0 18px !important;
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+}
+
+.feed-switch.active {
+  color: var(--accent) !important;
+}
+
+.feed-switch.active::after {
+  right: 8px !important;
+  bottom: -2px !important;
+  left: 8px !important;
+  height: 4px !important;
+  background: var(--accent) !important;
+}
+
+/* ---------- Composer ---------- */
+
+.composer {
+  margin-bottom: 16px !important;
+  padding: 15px !important;
+  border: 2px solid var(--text) !important;
+  border-radius: 9px !important;
+  background: var(--surface) !important;
+  box-shadow: 5px 5px 0 var(--accent) !important;
+}
+
+.composer-input {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+}
+
+.composer-add {
+  border: 2px solid var(--qyvra-black) !important;
+  border-radius: 7px !important;
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  box-shadow: 2px 2px 0 var(--qyvra-black) !important;
+}
+
+:root[data-theme="dark"] .composer-add {
+  border-color: var(--qyvra-white) !important;
+  box-shadow: 2px 2px 0 var(--qyvra-white) !important;
+}
+
+.composer-add:hover {
+  transform: translate(-1px, -1px) rotate(2deg) !important;
+  box-shadow: 4px 4px 0 var(--qyvra-black) !important;
+}
+
+/* ---------- Feed posts ---------- */
+
+.post-card {
+  padding: 22px 0 !important;
+  border-bottom: 2px solid var(--line) !important;
+}
+
+.post-card:hover {
+  background: linear-gradient(to right, transparent 0, var(--surface-2) 8%, transparent 100%) !important;
+}
+
+.post-body {
+  min-width: 0 !important;
+}
+
+.post-meta strong {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-weight: 900 !important;
+}
+
+.post-meta > span {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+}
+
+.post-text {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+}
+
+.post-image {
+  border: 2px solid var(--text) !important;
+  border-radius: 9px !important;
+  box-shadow: 5px 5px 0 var(--qyvra-black) !important;
+}
+
+:root[data-theme="dark"] .post-image {
+  box-shadow: 5px 5px 0 var(--qyvra-white) !important;
+}
+
+.post-actions {
+  margin-top: 13px !important;
+}
+
+.post-action {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+}
+
+.post-action:hover {
+  background: var(--surface-2) !important;
+}
+
+.post-action.active {
+  color: var(--accent) !important;
+}
+
+/* ---------- Discovery rail ---------- */
+
+.right-rail .rail-section {
+  border: 2px solid var(--text) !important;
+  border-radius: 9px !important;
+  margin-bottom: 14px !important;
+  padding: 18px !important;
+  background: var(--surface) !important;
+  box-shadow: 5px 5px 0 var(--accent) !important;
+}
+
+.right-rail .rail-heading h2 {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 900 !important;
+}
+
+.right-rail .rail-heading button {
+  color: var(--accent) !important;
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-weight: 900 !important;
+}
+
+/* ---------- Profile gets the same visual grammar ---------- */
+
+.profile-header {
+  border-top: 2px solid var(--text) !important;
+  border-bottom: 2px solid var(--text) !important;
+}
+
+.profile-name-row h1 {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-weight: 900 !important;
+}
+
+.profile-follow-button {
+  background: var(--accent) !important;
+  border: 2px solid var(--qyvra-black) !important;
+  color: #ffffff !important;
+  box-shadow: 4px 4px 0 var(--qyvra-black) !important;
+}
+
+:root[data-theme="dark"] .profile-follow-button {
+  border-color: var(--qyvra-white) !important;
+  box-shadow: 4px 4px 0 var(--qyvra-white) !important;
+}
+
+.profile-follow-button:hover {
+  transform: translate(-2px, -2px) !important;
+}
+
+.profile-tabs {
+  border-bottom: 2px solid var(--text) !important;
+}
+
+.profile-tabs button {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-weight: 900 !important;
+}
+
+.profile-tabs button.active {
+  color: var(--accent) !important;
+}
+
+.profile-tabs button.active::after {
+  height: 4px !important;
+  background: var(--accent) !important;
+}
+
+.profile-post {
+  border-width: 2px !important;
+  border-color: var(--line) !important;
+}
+
+/* ---------- Desktop breakpoints ---------- */
+
+@media (max-width: 1240px) and (min-width: 761px) {
+  .side-nav {
+    left: 250px !important;
+    right: 310px !important;
+    justify-content: flex-start !important;
+    overflow: hidden !important;
+  }
+
+  .side-nav a {
+    padding-inline: 9px !important;
+    font-size: 11px !important;
+  }
+
+  .sidebar .create-button {
+    right: 185px !important;
+    width: 92px !important;
+  }
+
+  .page-grid {
+    width: min(1120px, calc(100% - 34px)) !important;
+    grid-template-columns: minmax(0, 1fr) 250px !important;
+    gap: 30px !important;
+  }
+}
+
+@media (max-width: 920px) and (min-width: 761px) {
+  .side-nav a {
+    min-width: 72px !important;
+    padding-inline: 7px !important;
+  }
+
+  .side-nav a span {
+    display: none !important;
+  }
+
+  .sidebar .create-button {
+    right: 120px !important;
+    width: 84px !important;
+    font-size: 10px !important;
+  }
+
+  .page-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .right-rail {
+    display: none !important;
+  }
+}
+
+/* ---------- Mobile: header + category strip + bottom nav ---------- */
+
+@media (max-width: 760px) {
+  .topbar {
+    height: 64px !important;
+    padding: 0 14px !important;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .page-grid {
+    display: block !important;
+    width: 100% !important;
+    padding-top: 0 !important;
+  }
+
+  .main-column {
+    padding: 16px 14px 104px !important;
+  }
+
+  .right-rail {
+    display: none !important;
+  }
+
+  .topbar-actions {
+    gap: 6px !important;
+  }
+
+  .search-trigger,
+  .plain-icon,
+  .profile-trigger {
+    min-width: 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    border-radius: 7px !important;
+    box-shadow: 2px 2px 0 var(--qyvra-black) !important;
+  }
+
+  :root[data-theme="dark"] .search-trigger,
+  :root[data-theme="dark"] .plain-icon,
+  :root[data-theme="dark"] .profile-trigger {
+    box-shadow: 2px 2px 0 var(--qyvra-white) !important;
+  }
+
+  .search-trigger .search-label,
+  .search-trigger kbd,
+  .profile-trigger > span:last-child {
+    display: none !important;
+  }
+
+  .feed-switcher {
+    margin-bottom: 13px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    border-bottom: 2px solid var(--text) !important;
+  }
+
+  .feed-switcher::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .feed-switch {
+    flex: 0 0 auto !important;
+    min-height: 40px !important;
+    padding-inline: 14px !important;
+  }
+
+  .composer {
+    margin-bottom: 12px !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+    box-shadow: 4px 4px 0 var(--accent) !important;
+  }
+
+  .post-card {
+    gap: 10px !important;
+    padding: 17px 0 !important;
+  }
+
+  .post-image {
+    border-radius: 8px !important;
+    box-shadow: 4px 4px 0 var(--qyvra-black) !important;
+  }
+
+  :root[data-theme="dark"] .post-image {
+    box-shadow: 4px 4px 0 var(--qyvra-white) !important;
+  }
+
+  .mobile-nav {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    height: 58px !important;
+    border: 2px solid var(--text) !important;
+    border-radius: 9px !important;
+    background: var(--surface) !important;
+    box-shadow: 5px 5px 0 var(--accent) !important;
+  }
+
+  .mobile-nav a.active {
+    color: var(--accent) !important;
+  }
+
+  .mobile-nav > button {
+    border: 2px solid var(--qyvra-black) !important;
+    border-radius: 8px !important;
+    background: var(--accent) !important;
+    color: #ffffff !important;
+  }
+
+  :root[data-theme="dark"] .mobile-nav > button {
+    border-color: var(--qyvra-white) !important;
+  }
+}
+
+/* ---------- Animation language ---------- */
+
+@keyframes qyvraReveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes qyvraRedPulse {
+  0%, 100% {
+    box-shadow: 4px 4px 0 var(--qyvra-black);
+  }
+  50% {
+    box-shadow: 7px 7px 0 var(--accent);
+  }
+}
+
+.main-column,
+.right-rail {
+  animation: qyvraReveal .35s ease both;
+}
+
+.side-nav a,
+.sidebar .create-button,
+.post-card,
+.right-rail .rail-section,
+.profile-post,
+.mobile-nav {
+  transition:
+    transform .16s ease,
+    background-color .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease;
+}
+
+.create-button,
+.sidebar .create-button,
+.profile-follow-button,
+.composer-add {
+  animation: qyvraRedPulse 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-column,
+  .right-rail,
+  .create-button,
+  .sidebar .create-button,
+  .profile-follow-button,
+  .composer-add {
+    animation: none !important;
+  }
+}
