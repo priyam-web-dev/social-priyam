@@ -10,7 +10,6 @@ import {
 } from "react-router-dom";
 
 import { navigation } from "./appData";
-
 import Avatar from "./components/Avatar";
 import ThemeButton from "./components/ThemeButton";
 import CreateModal from "./components/CreateModal";
@@ -41,6 +40,10 @@ function getUsername(user) {
   );
 }
 
+function getAvatarUrl(user) {
+  return user?.user_metadata?.avatar_url || "";
+}
+
 function AppShell({ user, onLogout }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,14 +53,16 @@ function AppShell({ user, onLogout }) {
   const displayName = getDisplayName(user);
   const username = getUsername(user);
 
+  // Get the actual uploaded profile picture from Supabase Auth metadata.
+  const avatarUrl = getAvatarUrl(user);
+
   useEffect(() => {
     setCreateOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
     function handleKeyboard(event) {
-      const modifier =
-        event.metaKey || event.ctrlKey;
+      const modifier = event.metaKey || event.ctrlKey;
 
       if (
         modifier &&
@@ -103,7 +108,6 @@ function AppShell({ user, onLogout }) {
           aria-label="Go home"
         >
           <b>S</b>
-
           <span>social</span>
         </button>
 
@@ -134,6 +138,7 @@ function AppShell({ user, onLogout }) {
             <Avatar
               name={displayName}
               size="sm"
+              src={avatarUrl || undefined}
             />
 
             <span>{displayName}</span>
@@ -154,7 +159,6 @@ function AppShell({ user, onLogout }) {
                 end={item.path === "/"}
               >
                 <span>{item.icon}</span>
-
                 {item.label}
               </NavLink>
             ))}
@@ -173,11 +177,13 @@ function AppShell({ user, onLogout }) {
             className="account-card"
             onClick={() => navigate("/profile")}
           >
-            <Avatar name={displayName} />
+            <Avatar
+              name={displayName}
+              src={avatarUrl || undefined}
+            />
 
             <span>
               <strong>{displayName}</strong>
-
               <small>@{username}</small>
             </span>
 
