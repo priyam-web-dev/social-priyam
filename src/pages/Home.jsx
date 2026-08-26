@@ -33,7 +33,9 @@ function getAvatarUrl(user) {
 }
 
 function formatTime(dateString) {
-  if (!dateString) return "now";
+  if (!dateString) {
+    return "now";
+  }
 
   const date = new Date(dateString);
   const now = new Date();
@@ -47,37 +49,58 @@ function formatTime(dateString) {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m`;
-  if (hours < 24) return `${hours}h`;
-  if (days < 7) return `${days}d`;
+  if (minutes < 1) {
+    return "now";
+  }
 
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+
+  if (hours < 24) {
+    return `${hours}h`;
+  }
+
+  if (days < 7) {
+    return `${days}d`;
+  }
+
+  return date.toLocaleDateString(
+    undefined,
+    {
+      day: "numeric",
+      month: "short",
+    }
+  );
 }
 
 function normalizePost(row) {
   return {
     id: row.id,
 
-    name: row.author_name || "User",
+    name:
+      row.author_name ||
+      "User",
 
     handle:
-      row.author_username || "user",
+      row.author_username ||
+      "user",
 
     avatarUrl:
-      row.author_avatar || "",
+      row.author_avatar ||
+      "",
 
     text:
-      row.content || "",
+      row.content ||
+      "",
 
     imageUrl:
-      row.image_url || "",
+      row.image_url ||
+      "",
 
-    time:
-      formatTime(row.created_at),
+    time: formatTime(
+      row.created_at
+    ),
 
     createdAt:
       row.created_at,
@@ -102,16 +125,20 @@ export default function Home() {
   const [posts, setPosts] = useState([]);
   const [feedMode, setFeedMode] =
     useState("For you");
+
   const [loading, setLoading] =
     useState(true);
+
   const [posting, setPosting] =
     useState(false);
+
   const [error, setError] =
     useState("");
 
   const currentUser = useMemo(
     () => ({
-      name: getDisplayName(user),
+      name:
+        getDisplayName(user),
 
       username:
         getUsername(user),
@@ -132,9 +159,12 @@ export default function Home() {
     } = await supabase
       .from("posts")
       .select("*")
-      .order("created_at", {
-        ascending: false,
-      });
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        }
+      );
 
     if (fetchError) {
       console.error(
@@ -148,11 +178,14 @@ export default function Home() {
 
       setPosts([]);
       setLoading(false);
+
       return;
     }
 
     setPosts(
-      (data || []).map(normalizePost)
+      (data || []).map(
+        normalizePost
+      )
     );
 
     setLoading(false);
@@ -160,6 +193,55 @@ export default function Home() {
 
   useEffect(() => {
     loadPosts();
+  }, []);
+
+  /*
+   * CreateModal inserts the post directly
+   * into Supabase and then sends this event.
+   *
+   * This makes the newly-created image post
+   * appear immediately without requiring
+   * a page refresh.
+   */
+  useEffect(() => {
+    function handlePostCreated(event) {
+      const newPost =
+        event.detail;
+
+      if (!newPost?.id) {
+        return;
+      }
+
+      setPosts((current) => {
+        const alreadyExists =
+          current.some(
+            (post) =>
+              post.id ===
+              newPost.id
+          );
+
+        if (alreadyExists) {
+          return current;
+        }
+
+        return [
+          newPost,
+          ...current,
+        ];
+      });
+    }
+
+    window.addEventListener(
+      "social:post-created",
+      handlePostCreated
+    );
+
+    return () => {
+      window.removeEventListener(
+        "social:post-created",
+        handlePostCreated
+      );
+    };
   }, []);
 
   async function handleCreatePost(text) {
@@ -219,6 +301,7 @@ export default function Home() {
       );
 
       setPosting(false);
+
       return;
     }
 
@@ -231,24 +314,30 @@ export default function Home() {
   }
 
   async function handleLike(id) {
-    setPosts((current) =>
-      current.map((post) =>
-        post.id === id
-          ? {
-              ...post,
-              likes:
-                post.likes + 1,
-            }
-          : post
-      )
-    );
-
     const post =
       posts.find(
-        (item) => item.id === id
+        (item) =>
+          item.id === id
       );
 
-    if (!post) return;
+    if (!post) {
+      return;
+    }
+
+    const nextLikes =
+      post.likes + 1;
+
+    setPosts((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              likes:
+                nextLikes,
+            }
+          : item
+      )
+    );
 
     const {
       error: updateError,
@@ -256,9 +345,12 @@ export default function Home() {
       .from("posts")
       .update({
         likes:
-          post.likes + 1,
+          nextLikes,
       })
-      .eq("id", id);
+      .eq(
+        "id",
+        id
+      );
 
     if (updateError) {
       console.error(
@@ -267,17 +359,15 @@ export default function Home() {
       );
 
       setPosts((current) =>
-        current.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                likes:
-                  Math.max(
-                    0,
-                    item.likes - 1
-                  ),
-              }
-            : item
+        current.map(
+          (item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  likes:
+                    post.likes,
+                }
+              : item
         )
       );
     }
@@ -286,10 +376,13 @@ export default function Home() {
   async function handleReply(id) {
     const post =
       posts.find(
-        (item) => item.id === id
+        (item) =>
+          item.id === id
       );
 
-    if (!post) return;
+    if (!post) {
+      return;
+    }
 
     const nextReplies =
       post.replies + 1;
@@ -314,7 +407,10 @@ export default function Home() {
         replies:
           nextReplies,
       })
-      .eq("id", id);
+      .eq(
+        "id",
+        id
+      );
 
     if (updateError) {
       console.error(
@@ -323,14 +419,15 @@ export default function Home() {
       );
 
       setPosts((current) =>
-        current.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                replies:
-                  post.replies,
-              }
-            : item
+        current.map(
+          (item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  replies:
+                    post.replies,
+                }
+              : item
         )
       );
     }
@@ -339,10 +436,13 @@ export default function Home() {
   async function handleRepost(id) {
     const post =
       posts.find(
-        (item) => item.id === id
+        (item) =>
+          item.id === id
       );
 
-    if (!post) return;
+    if (!post) {
+      return;
+    }
 
     const nextReposts =
       post.reposts + 1;
@@ -367,7 +467,10 @@ export default function Home() {
         reposts:
           nextReposts,
       })
-      .eq("id", id);
+      .eq(
+        "id",
+        id
+      );
 
     if (updateError) {
       console.error(
@@ -376,14 +479,15 @@ export default function Home() {
       );
 
       setPosts((current) =>
-        current.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                reposts:
-                  post.reposts,
-              }
-            : item
+        current.map(
+          (item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  reposts:
+                    post.reposts,
+                }
+              : item
         )
       );
     }
@@ -391,7 +495,9 @@ export default function Home() {
 
   const visiblePosts =
     useMemo(() => {
-      if (feedMode === "Fresh") {
+      if (
+        feedMode === "Fresh"
+      ) {
         return [...posts].sort(
           (a, b) =>
             new Date(
@@ -403,7 +509,9 @@ export default function Home() {
         );
       }
 
-      if (feedMode === "Popular") {
+      if (
+        feedMode === "Popular"
+      ) {
         return [...posts].sort(
           (a, b) =>
             b.likes +
@@ -416,7 +524,10 @@ export default function Home() {
       }
 
       return posts;
-    }, [posts, feedMode]);
+    }, [
+      posts,
+      feedMode,
+    ]);
 
   return (
     <>
@@ -450,8 +561,12 @@ export default function Home() {
         <button
           type="button"
           className="feed-refresh"
-          onClick={loadPosts}
-          disabled={loading}
+          onClick={
+            loadPosts
+          }
+          disabled={
+            loading
+          }
           aria-label="Refresh feed"
         >
           ↻
@@ -460,7 +575,9 @@ export default function Home() {
 
       <section className="composer">
         <Avatar
-          name={currentUser.name}
+          name={
+            currentUser.name
+          }
           src={
             currentUser.avatarUrl ||
             undefined
@@ -480,7 +597,9 @@ export default function Home() {
             Something went wrong.
           </strong>
 
-          <span>{error}</span>
+          <span>
+            {error}
+          </span>
         </div>
       )}
 
@@ -498,11 +617,11 @@ export default function Home() {
             </strong>
 
             <span>
-              Fetching the latest
-              conversations...
+              Fetching the latest conversations...
             </span>
           </div>
-        ) : visiblePosts.length > 0 ? (
+        ) : visiblePosts.length >
+          0 ? (
           visiblePosts.map(
             (post) => (
               <Post
@@ -533,8 +652,7 @@ export default function Home() {
             </strong>
 
             <span>
-              Be the first person to
-              say something.
+              Be the first person to say something.
             </span>
           </div>
         )}

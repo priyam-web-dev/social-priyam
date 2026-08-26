@@ -9179,3 +9179,79 @@ button:active:not(:disabled) {
     max-height: 400px;
   }
 }
+.post-image {
+  width: 100%;
+  max-width: 740px;
+  margin: 14px 0 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.post-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 620px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.create-image-preview {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.create-image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.create-image-remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--background);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.create-image-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 700px) {
+  .post-image {
+    margin-top: 12px;
+    margin-bottom: 14px;
+    border-radius: 11px;
+  }
+
+  .post-image img {
+    max-height: 480px;
+  }
+
+  .create-image-preview img {
+    max-height: 320px;
+  }
+}git add .
+git commit -m "Add persistent image posts"
+git push origin main

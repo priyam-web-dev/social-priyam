@@ -45,7 +45,9 @@ function getFileExtension(file) {
     .pop()
     ?.toLowerCase();
 
-  if (extension === "jpeg") return "jpg";
+  if (extension === "jpeg") {
+    return "jpg";
+  }
 
   return extension || "jpg";
 }
@@ -91,7 +93,10 @@ export default function CreateModal({ onClose }) {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
     };
   }, [posting, text, imageFile]);
 
@@ -122,7 +127,9 @@ export default function CreateModal({ onClose }) {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setError("Image must be smaller than 5 MB.");
+      setError(
+        "Image must be smaller than 5 MB."
+      );
 
       event.target.value = "";
       return;
@@ -159,16 +166,21 @@ export default function CreateModal({ onClose }) {
 
     const extension = getFileExtension(imageFile);
 
-    const filePath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+    const filePath =
+      `${user.id}/${crypto.randomUUID()}.${extension}`;
 
     const { error: uploadError } =
       await supabase.storage
         .from("posts")
-        .upload(filePath, imageFile, {
-          cacheControl: "3600",
-          contentType: imageFile.type,
-          upsert: false,
-        });
+        .upload(
+          filePath,
+          imageFile,
+          {
+            cacheControl: "3600",
+            contentType: imageFile.type,
+            upsert: false,
+          }
+        );
 
     if (uploadError) {
       throw uploadError;
@@ -186,12 +198,17 @@ export default function CreateModal({ onClose }) {
   async function publishPost() {
     const cleanText = text.trim();
 
-    if ((!cleanText && !imageFile) || posting) {
+    if (
+      (!cleanText && !imageFile) ||
+      posting
+    ) {
       return;
     }
 
     if (!user?.id) {
-      setError("You need to be logged in to post.");
+      setError(
+        "You need to be logged in to post."
+      );
       return;
     }
 
@@ -201,23 +218,55 @@ export default function CreateModal({ onClose }) {
     try {
       const imageUrl = await uploadImage();
 
-      const post = {
-        id: Date.now(),
-        name: displayName,
-        handle: username,
-        avatarUrl,
-        text: cleanText,
-        imageUrl: imageUrl || "",
-        time: "now",
+      const postData = {
+        author_id: user.id,
+        author_name: displayName,
+        author_username: username,
+        author_avatar: avatarUrl || null,
+        content: cleanText,
+        image_url: imageUrl || null,
         likes: 0,
         replies: 0,
         reposts: 0,
       };
 
+      const {
+        data,
+        error: insertError,
+      } = await supabase
+        .from("posts")
+        .insert(postData)
+        .select()
+        .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      const post = {
+        id: data.id,
+        name: data.author_name || displayName,
+        handle:
+          data.author_username || username,
+        avatarUrl:
+          data.author_avatar || avatarUrl || "",
+        text: data.content || "",
+        imageUrl: data.image_url || "",
+        time: "now",
+        createdAt: data.created_at,
+        likes: Number(data.likes || 0),
+        replies: Number(data.replies || 0),
+        reposts: Number(data.reposts || 0),
+        authorId: data.author_id,
+      };
+
       window.dispatchEvent(
-        new CustomEvent("social:post-created", {
-          detail: post,
-        })
+        new CustomEvent(
+          "social:post-created",
+          {
+            detail: post,
+          }
+        )
       );
 
       window.setTimeout(() => {
@@ -239,14 +288,20 @@ export default function CreateModal({ onClose }) {
   }
 
   function handleBackdropClick(event) {
-    if (event.target === event.currentTarget && !posting) {
+    if (
+      event.target === event.currentTarget &&
+      !posting
+    ) {
       onClose();
     }
   }
 
-  const remaining = MAX_LENGTH - text.length;
+  const remaining =
+    MAX_LENGTH - text.length;
+
   const hasContent =
-    Boolean(text.trim()) || Boolean(imageFile);
+    Boolean(text.trim()) ||
+    Boolean(imageFile);
 
   return (
     <div
@@ -285,12 +340,19 @@ export default function CreateModal({ onClose }) {
         <div className="create-author">
           <Avatar
             name={displayName}
-            src={avatarUrl || undefined}
+            src={
+              avatarUrl || undefined
+            }
           />
 
           <div>
-            <strong>{displayName}</strong>
-            <small>@{username}</small>
+            <strong>
+              {displayName}
+            </strong>
+
+            <small>
+              @{username}
+            </small>
           </div>
         </div>
 
@@ -385,7 +447,10 @@ export default function CreateModal({ onClose }) {
             <button
               type="button"
               className="create-post-button"
-              disabled={!hasContent || posting}
+              disabled={
+                !hasContent ||
+                posting
+              }
               onClick={publishPost}
             >
               {posting
