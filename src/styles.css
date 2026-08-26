@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 /* =========================================================
    SOCIAL UI SYSTEM
@@ -9244,4 +9243,294 @@ button:active:not(:disabled) {
     border-radius: 11px;
     font-size: 11px;
   }
+}
+
+
+/* =========================================================
+   QYVRA DESIGN LANGUAGE — SNEAKER / RED / WHITE / BLACK
+   Final visual layer. Existing functionality and component
+   geometry remain intact. This layer intentionally comes last.
+========================================================= */
+
+:root {
+  --display-font: "SNEAKER", sans-serif !important;
+  --body-font: "SNEAKER", sans-serif !important;
+  --mono-font: "SNEAKER", sans-serif !important;
+
+  --bg: #ffffff !important;
+  --surface: #ffffff !important;
+  --surface-2: #f3f3f3 !important;
+  --surface-3: #e9e9e9 !important;
+
+  --text: #000000 !important;
+  --muted: #4d4d4d !important;
+  --line: #d9d9d9 !important;
+  --line-strong: #000000 !important;
+
+  --accent: #ff1f1f !important;
+  --accent-dark: #d90000 !important;
+  --accent-soft: #ffe1e1 !important;
+  --green: #000000 !important;
+  --blue: #000000 !important;
+
+  --shadow-sm: 0 4px 0 rgba(0, 0, 0, 0.12) !important;
+  --shadow: 0 10px 0 rgba(0, 0, 0, 0.12) !important;
+  --shadow-card: 0 8px 0 rgba(0, 0, 0, 0.10) !important;
+  --shadow-hover: 0 12px 0 rgba(0, 0, 0, 0.16) !important;
+  --shadow-hard: 6px 6px 0 #000000 !important;
+}
+
+:root[data-theme="dark"] {
+  --bg: #000000 !important;
+  --surface: #000000 !important;
+  --surface-2: #111111 !important;
+  --surface-3: #1a1a1a !important;
+
+  --text: #ffffff !important;
+  --muted: #b8b8b8 !important;
+  --line: #2b2b2b !important;
+  --line-strong: #ffffff !important;
+
+  --accent: #ff1f1f !important;
+  --accent-dark: #d90000 !important;
+  --accent-soft: #3a0000 !important;
+  --green: #ffffff !important;
+  --blue: #ffffff !important;
+
+  --shadow-sm: 0 4px 0 rgba(255, 255, 255, 0.08) !important;
+  --shadow: 0 10px 0 rgba(255, 255, 255, 0.08) !important;
+  --shadow-card: 0 8px 0 rgba(255, 255, 255, 0.08) !important;
+  --shadow-hover: 0 12px 0 rgba(255, 255, 255, 0.12) !important;
+  --shadow-hard: 6px 6px 0 #ff1f1f !important;
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select,
+option,
+* {
+  font-family: "SNEAKER", sans-serif !important;
+}
+
+body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* Brand */
+.qyvra-mark,
+.wordmark b {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  border-color: var(--text) !important;
+}
+
+/* Main brand controls */
+button:hover:not(:disabled),
+a:hover {
+  color: var(--accent);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline-color: var(--accent) !important;
+}
+
+/* Primary actions */
+.create-post-button,
+.composer-add,
+.follow-button,
+.profile-follow-button,
+.new-message-button,
+.mobile-nav > button {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+.create-post-button:hover:not(:disabled),
+.composer-add:hover:not(:disabled),
+.follow-button:hover:not(:disabled),
+.profile-follow-button:hover:not(:disabled),
+.new-message-button:hover:not(:disabled),
+.mobile-nav > button:hover:not(:disabled) {
+  background: var(--accent-dark) !important;
+  color: #ffffff !important;
+}
+
+/* Active navigation / tabs */
+.side-nav a.active,
+.mobile-nav a.active,
+.profile-tabs button.active,
+.explore-tabs button.active,
+.feed-switch.active,
+.post-action.active {
+  color: var(--accent) !important;
+}
+
+/* Red should visibly own important interactive states */
+.post-action.active .post-action-icon,
+.post-action.shared .post-action-icon,
+.like-pulse .post-action-icon,
+.activity-like,
+.create-kicker,
+.profile-edit-kicker {
+  color: var(--accent) !important;
+}
+
+/* Post media */
+.post-image {
+  border-color: var(--line) !important;
+  background: var(--surface-2) !important;
+}
+
+.post-image img {
+  background: var(--surface-2) !important;
+}
+
+.post-image-error {
+  border-color: var(--accent) !important;
+  color: var(--muted) !important;
+  background: var(--surface) !important;
+}
+
+/* Cards and surfaces */
+.post-card,
+.profile-post,
+.composer,
+.activity-list,
+.messages-layout,
+.modal,
+.profile-edit-modal,
+.rail-section,
+.explore-topic,
+.conversation,
+.person-row,
+.discover-post {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* Important separators */
+.post-card,
+.profile-post,
+.activity-item,
+.profile-tabs,
+.feed-switcher,
+.explore-tabs {
+  border-color: var(--line) !important;
+}
+
+/* Inputs */
+input,
+textarea,
+select,
+.messages-search,
+.message-composer input,
+.message-composer textarea,
+.explore-search,
+.create-modal textarea {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+.messages-search:focus-within,
+.explore-search:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-soft) !important;
+}
+
+/* Menus */
+.post-menu,
+.profile-menu,
+.search-panel,
+.notification-panel {
+  background: var(--surface) !important;
+  border-color: var(--text) !important;
+}
+
+.post-menu button:hover,
+.profile-menu button:hover,
+.search-panel button:hover,
+.notification-panel button:hover {
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+}
+
+/* Dark mode should be genuinely black, not charcoal */
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .main-column,
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .right-rail,
+:root[data-theme="dark"] .mobile-nav,
+:root[data-theme="dark"] .modal,
+:root[data-theme="dark"] .profile-edit-modal,
+:root[data-theme="dark"] .post-card,
+:root[data-theme="dark"] .profile-post,
+:root[data-theme="dark"] .composer,
+:root[data-theme="dark"] .messages-layout,
+:root[data-theme="dark"] .activity-list {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+:root[data-theme="dark"] .post-menu,
+:root[data-theme="dark"] .profile-menu,
+:root[data-theme="dark"] .search-panel,
+:root[data-theme="dark"] .notification-panel,
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] .messages-search,
+:root[data-theme="dark"] .message-composer input,
+:root[data-theme="dark"] .message-composer textarea,
+:root[data-theme="dark"] .explore-search,
+:root[data-theme="dark"] .create-modal textarea {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #2b2b2b !important;
+}
+
+:root[data-theme="dark"] .post-image,
+:root[data-theme="dark"] .post-image img,
+:root[data-theme="dark"] .profile-post-image,
+:root[data-theme="dark"] .create-image-preview {
+  background: #111111 !important;
+}
+
+:root[data-theme="dark"] .mobile-nav {
+  border-color: #2b2b2b !important;
+}
+
+/* Red brand line for key navigation areas */
+.topbar {
+  border-bottom-color: var(--accent) !important;
+}
+
+.side-nav a.active::before,
+.profile-tabs button.active::after,
+.explore-tabs button.active::after {
+  background: var(--accent) !important;
+}
+
+/* Keep disabled controls readable */
+button:disabled {
+  opacity: 0.45;
+}
+
+/* Accessibility */
+::selection {
+  background: var(--accent) !important;
+  color: #ffffff !important;
 }
