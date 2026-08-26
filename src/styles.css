@@ -9082,222 +9082,166 @@ button:active:not(:disabled) {
     width: 100%;
   }
 }
+
+
+
 /* =========================================================
-   POST IMAGES
+   QYVRA FINAL POST LAYOUT + IMAGE COMPRESSION DISPLAY
+   Header stays at the top. Media owns the middle.
+   Caption and actions stay locked to the bottom.
    ========================================================= */
 
+.profile-post {
+  position: relative !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  min-height: 520px !important;
+  height: 520px !important;
+  padding: 18px !important;
+  overflow: hidden !important;
+}
+
+.profile-post-top {
+  position: relative !important;
+  z-index: 3 !important;
+  grid-row: 1 !important;
+  min-height: 18px !important;
+  margin: 0 !important;
+}
+
+.profile-post-content {
+  grid-row: 2 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  overflow: hidden !important;
+  padding: 12px 0 !important;
+}
+
+.profile-post-image-wrap {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  border-radius: 10px !important;
+  background: var(--surface-2) !important;
+}
+
+.profile-post-image {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+.profile-post-content > p {
+  position: relative !important;
+  inset: auto !important;
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  max-height: 5.4em !important;
+  overflow: hidden !important;
+  margin: 10px 0 0 !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 3 !important;
+  line-clamp: 3 !important;
+}
+
+.profile-post-bottom {
+  position: relative !important;
+  z-index: 3 !important;
+  grid-row: 3 !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 100% !important;
+  min-height: 18px !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 760px) {
+  .profile-post {
+    min-height: 440px !important;
+    height: 440px !important;
+    padding: 15px !important;
+  }
+
+  .profile-post-content {
+    padding: 10px 0 !important;
+  }
+
+  .profile-post-image-wrap {
+    border-radius: 9px !important;
+  }
+
+  .profile-post-content > p {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+  }
+}
+
+/* =========================================================
+   QYVRA POST IMAGE FINAL FIX
+   Keep post images inside the post body and prevent oversized
+   attachments from breaking the feed layout.
+========================================================= */
+
 .post-image {
-  width: 100%;
-  max-width: 690px;
-  margin: 12px 0 18px;
+  display: block;
+  width: 100% !important;
+  margin-top: 14px;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--surface-2);
 }
 
 .post-image img {
   display: block;
-  width: 100%;
-  height: auto;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100%;
   max-height: 620px;
-  object-fit: cover;
+  min-height: 0;
+  object-fit: contain;
   object-position: center;
+  background: var(--surface-2);
 }
 
-/* Image-only posts */
-.post-image:only-child {
-  margin-top: 11px;
+.post-image-error {
+  width: 100%;
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
 }
 
-/* Better handling for very tall images */
-@media (min-width: 761px) {
-  .post-image img {
-    max-height: 620px;
-  }
-}
-
-/* Mobile */
 @media (max-width: 760px) {
   .post-image {
-    width: 100%;
-    max-width: 100%;
-    margin: 10px 0 15px;
-    border-radius: 10px;
-  }
-
-  .post-image img {
-    width: 100%;
-    max-height: 500px;
-    object-fit: cover;
-    object-position: center;
-  }
-}/* =========================================================
-   CREATE MODAL IMAGE FIX
-   ========================================================= */
-
-.create-modal {
-  width: min(660px, calc(100vw - 40px));
-  max-width: 660px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.create-modal img {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  max-height: 520px;
-  object-fit: contain;
-  object-position: center;
-  box-sizing: border-box;
-}
-
-.create-modal picture {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.create-modal [class*="image"],
-.create-modal [class*="preview"] {
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-
-@media (max-width: 700px) {
-  .create-modal {
-    width: calc(100vw - 28px);
-    max-width: calc(100vw - 28px);
-    padding: 18px;
-  }
-
-  .create-modal img {
-    max-height: 400px;
-  }
-}
-.post-image {
-  width: 100%;
-  max-width: 740px;
-  margin: 14px 0 16px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-}
-
-.post-image img {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 620px;
-  object-fit: contain;
-  object-position: center;
-}
-
-.create-image-preview {
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  margin-top: 14px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-}
-
-.create-image-preview img {
-  display: block;
-  width: 100%;
-  max-height: 420px;
-  object-fit: contain;
-  object-position: center;
-}
-
-.create-image-remove {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--background);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.create-image-remove:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-@media (max-width: 700px) {
-  .post-image {
     margin-top: 12px;
-    margin-bottom: 14px;
-    border-radius: 11px;
-  }
-
-  .post-image img {
-    max-height: 480px;
-  }
-
-  .create-image-preview img {
-    max-height: 320px;
-  }
-}
-.post-image-wrap {
-  position: relative;
-  width: 100%;
-  margin-top: 18px;
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--surface-soft, #f2f0eb);
-}
-
-.post-image {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 720px;
-  object-fit: contain;
-  border-radius: inherit;
-}
-
-.post-image-loading {
-  position: absolute;
-  inset: 0;
-  min-height: 240px;
-  background: linear-gradient(
-    90deg,
-    rgba(128, 128, 128, 0.08),
-    rgba(128, 128, 128, 0.16),
-    rgba(128, 128, 128, 0.08)
-  );
-}
-
-.post-image-wrap:not(.loaded) .post-image {
-  opacity: 0;
-}
-
-.post-image-wrap.loaded .post-image {
-  opacity: 1;
-}
-
-@media (max-width: 700px) {
-  .post-image-wrap {
-    margin-top: 14px;
     border-radius: 12px;
   }
 
-  .post-image {
-    max-height: 560px;
+  .post-image img {
+    max-height: 520px;
+  }
+
+  .post-image-error {
+    margin-top: 12px;
+    padding: 15px;
+    border-radius: 11px;
+    font-size: 11px;
   }
 }

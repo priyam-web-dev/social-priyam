@@ -1,4 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import Avatar from "./Avatar";
 import { supabase } from "../lib/supabase";
@@ -13,6 +17,8 @@ const ALLOWED_TYPES = [
   "image/webp",
   "image/gif",
 ];
+
+const TARGET_COMPRESSION_RATIO = 0.7;
 
 function getDisplayName(user) {
   return (
@@ -41,7 +47,8 @@ function getAvatarUrl(user) {
 
 function getFileExtension(file) {
   const extension =
-    file?.name?.split(".").pop()?.toLowerCase() || "jpg";
+    file?.name?.split(".").pop()?.toLowerCase() ||
+    "jpg";
 
   if (extension === "jpeg") {
     return "jpg";
@@ -50,21 +57,202 @@ function getFileExtension(file) {
   return extension;
 }
 
-export default function CreateModal({ onClose }) {
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl =
+      URL.createObjectURL(file);
+
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(
+        new Error(
+          "The selected image couldn't be read."
+        )
+      );
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+function canvasToBlob(
+  canvas,
+  type,
+  quality
+) {
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      resolve,
+      type,
+      quality
+    );
+  });
+}
+
+async function compressImage(file) {
+  /*
+   * Do not convert GIFs.
+   * Canvas would flatten animated GIFs.
+   */
+  if (file.type === "image/gif") {
+    return file;
+  }
+
+  /*
+   * Small files are already small.
+   */
+  if (file.size <= 200 * 1024) {
+    return file;
+  }
+
+  const image =
+    await loadImage(file);
+
+  if (
+    !image.naturalWidth ||
+    !image.naturalHeight
+  ) {
+    return file;
+  }
+
+  const canvas =
+    document.createElement(
+      "canvas"
+    );
+
+  canvas.width =
+    image.naturalWidth;
+
+  canvas.height =
+    image.naturalHeight;
+
+  const context =
+    canvas.getContext(
+      "2d"
+    );
+
+  if (!context) {
+    return file;
+  }
+
+  context.drawImage(
+    image,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  const targetSize =
+    file.size *
+    TARGET_COMPRESSION_RATIO;
+
+  /*
+   * Try progressively lower WebP quality.
+   */
+  const qualities = [
+    0.82,
+    0.76,
+    0.70,
+    0.64,
+    0.58,
+  ];
+
+  let bestBlob = null;
+
+  for (const quality of qualities) {
+    const blob =
+      await canvasToBlob(
+        canvas,
+        "image/webp",
+        quality
+      );
+
+    if (!blob) {
+      continue;
+    }
+
+    /*
+     * Never use a compressed file if it
+     * became larger than the original.
+     */
+    if (blob.size >= file.size) {
+      continue;
+    }
+
+    bestBlob = blob;
+
+    /*
+     * Target approximately 30% reduction.
+     */
+    if (
+      blob.size <= targetSize
+    ) {
+      break;
+    }
+  }
+
+  if (!bestBlob) {
+    return file;
+  }
+
+  /*
+   * Keep original dimensions and aspect ratio.
+   */
+  return new File(
+    [bestBlob],
+    `${file.name.replace(
+      /\.[^/.]+$/,
+      ""
+    )}.webp`,
+    {
+      type: "image/webp",
+      lastModified: Date.now(),
+    }
+  );
+}
+
+export default function CreateModal({
+  onClose,
+}) {
   const { user } = useAuth();
 
-  const [text, setText] = useState("");
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState("");
-  const [posting, setPosting] = useState(false);
-  const [error, setError] = useState("");
+  const [text, setText] =
+    useState("");
 
-  const textareaRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const [imageFile, setImageFile] =
+    useState(null);
 
-  const displayName = getDisplayName(user);
-  const username = getUsername(user);
-  const avatarUrl = getAvatarUrl(user);
+  const [imagePreview, setImagePreview] =
+    useState("");
+
+  const [posting, setPosting] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const textareaRef =
+    useRef(null);
+
+  const fileInputRef =
+    useRef(null);
+
+  const displayName =
+    getDisplayName(user);
+
+  const username =
+    getUsername(user);
+
+  const avatarUrl =
+    getAvatarUrl(user);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -72,12 +260,16 @@ export default function CreateModal({ onClose }) {
 
   useEffect(() => {
     function handleKeyDown(event) {
-      if (event.key === "Escape" && !posting) {
+      if (
+        event.key === "Escape" &&
+        !posting
+      ) {
         onClose();
       }
 
       if (
-        (event.metaKey || event.ctrlKey) &&
+        (event.metaKey ||
+          event.ctrlKey) &&
         event.key === "Enter"
       ) {
         event.preventDefault();
@@ -88,7 +280,10 @@ export default function CreateModal({ onClose }) {
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
 
     return () => {
       window.removeEventListener(
@@ -96,18 +291,31 @@ export default function CreateModal({ onClose }) {
         handleKeyDown
       );
     };
-  }, [posting, text, imageFile]);
+  }, [
+    posting,
+    text,
+    imageFile,
+  ]);
 
   useEffect(() => {
     return () => {
-      if (imagePreview?.startsWith("blob:")) {
-        URL.revokeObjectURL(imagePreview);
+      if (
+        imagePreview?.startsWith(
+          "blob:"
+        )
+      ) {
+        URL.revokeObjectURL(
+          imagePreview
+        );
       }
     };
   }, [imagePreview]);
 
-  function handleImageChange(event) {
-    const file = event.target.files?.[0];
+  function handleImageChange(
+    event
+  ) {
+    const file =
+      event.target.files?.[0];
 
     if (!file) {
       return;
@@ -115,7 +323,11 @@ export default function CreateModal({ onClose }) {
 
     setError("");
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (
+      !ALLOWED_TYPES.includes(
+        file.type
+      )
+    ) {
       setError(
         "Please choose a JPG, PNG, WEBP or GIF image."
       );
@@ -124,26 +336,43 @@ export default function CreateModal({ onClose }) {
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      setError("Image must be smaller than 5 MB.");
+    if (
+      file.size > MAX_FILE_SIZE
+    ) {
+      setError(
+        "Image must be smaller than 5 MB."
+      );
 
       event.target.value = "";
       return;
     }
 
-    if (imagePreview?.startsWith("blob:")) {
-      URL.revokeObjectURL(imagePreview);
+    if (
+      imagePreview?.startsWith(
+        "blob:"
+      )
+    ) {
+      URL.revokeObjectURL(
+        imagePreview
+      );
     }
 
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl =
+      URL.createObjectURL(file);
 
     setImageFile(file);
     setImagePreview(previewUrl);
   }
 
   function removeImage() {
-    if (imagePreview?.startsWith("blob:")) {
-      URL.revokeObjectURL(imagePreview);
+    if (
+      imagePreview?.startsWith(
+        "blob:"
+      )
+    ) {
+      URL.revokeObjectURL(
+        imagePreview
+      );
     }
 
     setImageFile(null);
@@ -151,16 +380,32 @@ export default function CreateModal({ onClose }) {
     setError("");
 
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value =
+        "";
     }
   }
 
   async function uploadImage() {
-    if (!imageFile || !user?.id) {
+    if (
+      !imageFile ||
+      !user?.id
+    ) {
       return "";
     }
 
-    const extension = getFileExtension(imageFile);
+    /*
+     * Compression happens HERE,
+     * before Supabase Storage upload.
+     */
+    const uploadFile =
+      await compressImage(
+        imageFile
+      );
+
+    const extension =
+      getFileExtension(
+        uploadFile
+      );
 
     const filePath =
       `${user.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
@@ -168,13 +413,19 @@ export default function CreateModal({ onClose }) {
     const {
       data,
       error: uploadError,
-    } = await supabase.storage
-      .from("posts")
-      .upload(filePath, imageFile, {
-        cacheControl: "3600",
-        contentType: imageFile.type,
-        upsert: false,
-      });
+    } =
+      await supabase.storage
+        .from("posts")
+        .upload(
+          filePath,
+          uploadFile,
+          {
+            cacheControl: "3600",
+            contentType:
+              uploadFile.type,
+            upsert: false,
+          }
+        );
 
     if (uploadError) {
       console.error(
@@ -196,12 +447,16 @@ export default function CreateModal({ onClose }) {
 
     const {
       data: publicUrlData,
-    } = supabase.storage
-      .from("posts")
-      .getPublicUrl(data.path);
+    } =
+      supabase.storage
+        .from("posts")
+        .getPublicUrl(
+          data.path
+        );
 
     const publicUrl =
-      publicUrlData?.publicUrl || "";
+      publicUrlData?.publicUrl ||
+      "";
 
     if (!publicUrl) {
       throw new Error(
@@ -213,9 +468,14 @@ export default function CreateModal({ onClose }) {
   }
 
   async function publishPost() {
-    const cleanText = text.trim();
+    const cleanText =
+      text.trim();
 
-    if ((!cleanText && !imageFile) || posting) {
+    if (
+      (!cleanText &&
+        !imageFile) ||
+      posting
+    ) {
       return;
     }
 
@@ -223,6 +483,7 @@ export default function CreateModal({ onClose }) {
       setError(
         "You need to be logged in to post."
       );
+
       return;
     }
 
@@ -232,23 +493,24 @@ export default function CreateModal({ onClose }) {
     try {
       /*
        * STEP 1
-       * Upload image first.
+       * Compress + upload image.
        */
-      const imageUrl = await uploadImage();
+      const imageUrl =
+        await uploadImage();
 
       /*
        * STEP 2
-       * Create the actual database row.
-       *
-       * image_url is now stored permanently.
+       * Save image_url in database.
        */
       const postPayload = {
         author_id: user.id,
         author_name: displayName,
         author_username: username,
-        author_avatar: avatarUrl || null,
+        author_avatar:
+          avatarUrl || null,
         content: cleanText,
-        image_url: imageUrl || null,
+        image_url:
+          imageUrl || null,
         likes: 0,
         replies: 0,
         reposts: 0,
@@ -257,11 +519,14 @@ export default function CreateModal({ onClose }) {
       const {
         data: savedPost,
         error: insertError,
-      } = await supabase
-        .from("posts")
-        .insert(postPayload)
-        .select("*")
-        .single();
+      } =
+        await supabase
+          .from("posts")
+          .insert(
+            postPayload
+          )
+          .select("*")
+          .single();
 
       if (insertError) {
         console.error(
@@ -277,20 +542,20 @@ export default function CreateModal({ onClose }) {
 
       /*
        * STEP 3
-       * Tell Home/Profile immediately.
-       *
-       * The database remains the source of truth,
-       * so refresh will also keep the post.
+       * Tell Home/Profile.
        */
       window.dispatchEvent(
-        new CustomEvent("social:post-created", {
-          detail: savedPost,
-        })
+        new CustomEvent(
+          "social:post-created",
+          {
+            detail: savedPost,
+          }
+        )
       );
 
       /*
        * STEP 4
-       * Clean local state.
+       * Reset.
        */
       setText("");
       removeImage();
@@ -313,9 +578,12 @@ export default function CreateModal({ onClose }) {
     }
   }
 
-  function handleBackdropClick(event) {
+  function handleBackdropClick(
+    event
+  ) {
     if (
-      event.target === event.currentTarget &&
+      event.target ===
+        event.currentTarget &&
       !posting
     ) {
       onClose();
@@ -332,7 +600,9 @@ export default function CreateModal({ onClose }) {
   return (
     <div
       className="modal-backdrop"
-      onMouseDown={handleBackdropClick}
+      onMouseDown={
+        handleBackdropClick
+      }
       role="presentation"
     >
       <section
@@ -367,7 +637,8 @@ export default function CreateModal({ onClose }) {
           <Avatar
             name={displayName}
             src={
-              avatarUrl || undefined
+              avatarUrl ||
+              undefined
             }
           />
 
@@ -402,7 +673,8 @@ export default function CreateModal({ onClose }) {
           <div
             className="create-image-preview"
             style={{
-              position: "relative",
+              position:
+                "relative",
               width: "100%",
               marginTop: "14px",
               overflow: "hidden",
@@ -419,6 +691,7 @@ export default function CreateModal({ onClose }) {
               style={{
                 display: "block",
                 width: "100%",
+                height: "auto",
                 maxHeight: "420px",
                 objectFit: "contain",
                 background:
@@ -429,23 +702,29 @@ export default function CreateModal({ onClose }) {
             <button
               type="button"
               className="create-image-remove"
-              onClick={removeImage}
+              onClick={
+                removeImage
+              }
               disabled={posting}
               aria-label="Remove selected image"
               style={{
-                position: "absolute",
+                position:
+                  "absolute",
                 top: "10px",
                 right: "10px",
                 width: "32px",
                 height: "32px",
-                border: "1px solid var(--line)",
-                borderRadius: "50%",
+                border:
+                  "1px solid var(--line)",
+                borderRadius:
+                  "50%",
                 background:
                   "rgba(0,0,0,.72)",
                 color: "#fff",
                 fontSize: "20px",
                 lineHeight: 1,
-                cursor: "pointer",
+                cursor:
+                  "pointer",
               }}
             >
               ×
@@ -465,7 +744,9 @@ export default function CreateModal({ onClose }) {
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={handleImageChange}
+              onChange={
+                handleImageChange
+              }
               hidden
             />
 
@@ -510,9 +791,12 @@ export default function CreateModal({ onClose }) {
               type="button"
               className="create-post-button"
               disabled={
-                !hasContent || posting
+                !hasContent ||
+                posting
               }
-              onClick={publishPost}
+              onClick={
+                publishPost
+              }
             >
               {posting
                 ? imageFile

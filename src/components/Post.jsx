@@ -20,50 +20,28 @@ export default function Post({
   onReply,
   onRepost,
 }) {
-  const [liked, setLiked] =
-    useState(false);
+  const [liked, setLiked] = useState(false);
+  const [reposted, setReposted] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [likePulse, setLikePulse] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
-  const [reposted, setReposted] =
-    useState(false);
-
-  const [shared, setShared] =
-    useState(false);
-
-  const [menuOpen, setMenuOpen] =
-    useState(false);
-
-  const [likePulse, setLikePulse] =
-    useState(false);
-
-  const [imageFailed, setImageFailed] =
-    useState(false);
-
-  const menuRef =
-    useRef(null);
-
-  const shareTimerRef =
-    useRef(null);
-
-  const likeTimerRef =
-    useRef(null);
+  const menuRef = useRef(null);
+  const shareTimerRef = useRef(null);
+  const likeTimerRef = useRef(null);
 
   const displayedLikes =
-    likes +
-    (liked ? 1 : 0);
+    likes + (liked ? 1 : 0);
 
   const displayedReposts =
-    reposts +
-    (reposted ? 1 : 0);
+    reposts + (reposted ? 1 : 0);
 
   useEffect(() => {
-    function handleOutsideClick(
-      event
-    ) {
+    function handleOutsideClick(event) {
       if (
         menuRef.current &&
-        !menuRef.current.contains(
-          event.target
-        )
+        !menuRef.current.contains(event.target)
       ) {
         setMenuOpen(false);
       }
@@ -161,13 +139,11 @@ export default function Post({
     try {
       if (navigator.share) {
         await navigator.share({
-          title:
-            `${name} on QYVRA`,
+          title: `${name} on QYVRA`,
           text:
             text ||
             "Check out this post on QYVRA.",
-          url:
-            window.location.href,
+          url: window.location.href,
         });
 
         showSharedState();
@@ -210,13 +186,12 @@ export default function Post({
     <article className="post-card">
       <Avatar
         name={name}
-        src={
-          avatarUrl ||
-          undefined
-        }
+        src={avatarUrl || undefined}
       />
 
       <div className="post-body">
+
+        {/* TOP: metadata */}
         <div className="post-meta">
           <strong>
             {name}
@@ -241,14 +216,11 @@ export default function Post({
               className="post-more"
               onClick={() =>
                 setMenuOpen(
-                  (current) =>
-                    !current
+                  (current) => !current
                 )
               }
               aria-label="Post options"
-              aria-expanded={
-                menuOpen
-              }
+              aria-expanded={menuOpen}
               aria-haspopup="menu"
             >
               ···
@@ -262,9 +234,7 @@ export default function Post({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={
-                    closeMenu
-                  }
+                  onClick={closeMenu}
                 >
                   Not interested
                 </button>
@@ -272,9 +242,7 @@ export default function Post({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={
-                    closeMenu
-                  }
+                  onClick={closeMenu}
                 >
                   Mute @{handle}
                 </button>
@@ -282,9 +250,7 @@ export default function Post({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={
-                    closeMenu
-                  }
+                  onClick={closeMenu}
                 >
                   Report post
                 </button>
@@ -293,6 +259,36 @@ export default function Post({
           </div>
         </div>
 
+        {/* MIDDLE: image */}
+        {imageUrl &&
+          !imageFailed && (
+            <div
+              className="post-image"
+              onDoubleClick={
+                handleDoubleClick
+              }
+            >
+              <img
+                src={imageUrl}
+                alt="Post attachment"
+                loading="lazy"
+                decoding="async"
+                onError={() =>
+                  setImageFailed(true)
+                }
+              />
+            </div>
+          )}
+
+        {/* Image error */}
+        {imageUrl &&
+          imageFailed && (
+            <div className="post-image-error">
+              Image couldn't be loaded.
+            </div>
+          )}
+
+        {/* BOTTOM: caption */}
         {text && (
           <p
             className="post-text"
@@ -304,72 +300,9 @@ export default function Post({
           </p>
         )}
 
-        {imageUrl &&
-          !imageFailed && (
-            <div
-              className="post-image"
-              style={{
-                width: "100%",
-                marginTop: text
-                  ? "14px"
-                  : "4px",
-                overflow: "hidden",
-                borderRadius:
-                  "12px",
-                border:
-                  "1px solid var(--line)",
-                background:
-                  "var(--surface-2)",
-              }}
-            >
-              <img
-                src={imageUrl}
-                alt="Post attachment"
-                loading="lazy"
-                decoding="async"
-                onError={() =>
-                  setImageFailed(
-                    true
-                  )
-                }
-                style={{
-                  display: "block",
-                  width: "100%",
-                  maxHeight: "620px",
-                  objectFit:
-                    "contain",
-                  objectPosition:
-                    "center",
-                  background:
-                    "var(--surface-2)",
-                }}
-              />
-            </div>
-          )}
-
-        {imageUrl &&
-          imageFailed && (
-            <div
-              className="post-image-error"
-              style={{
-                marginTop: "14px",
-                padding:
-                  "18px",
-                border:
-                  "1px solid var(--line)",
-                borderRadius:
-                  "12px",
-                color:
-                  "var(--muted)",
-                fontSize:
-                  "12px",
-              }}
-            >
-              Image couldn't be loaded.
-            </div>
-          )}
-
+        {/* BOTTOM-MOST: actions */}
         <div className="post-actions">
+
           <button
             type="button"
             className={
@@ -381,22 +314,16 @@ export default function Post({
                   } active`
                 : "post-action"
             }
-            onClick={
-              handleLike
-            }
+            onClick={handleLike}
             aria-label={
               liked
                 ? "Unlike post"
                 : "Like post"
             }
-            aria-pressed={
-              liked
-            }
+            aria-pressed={liked}
           >
             <span className="post-action-icon">
-              {liked
-                ? "♥"
-                : "♡"}
+              {liked ? "♥" : "♡"}
             </span>
 
             <span>
@@ -407,9 +334,7 @@ export default function Post({
           <button
             type="button"
             className="post-action"
-            onClick={
-              handleReply
-            }
+            onClick={handleReply}
             aria-label="Reply to post"
           >
             <span className="post-action-icon">
@@ -428,17 +353,13 @@ export default function Post({
                 ? "post-action active reposted"
                 : "post-action"
             }
-            onClick={
-              handleRepost
-            }
+            onClick={handleRepost}
             aria-label={
               reposted
                 ? "Undo repost"
                 : "Repost"
             }
-            aria-pressed={
-              reposted
-            }
+            aria-pressed={reposted}
           >
             <span className="post-action-icon">
               ↻
@@ -456,9 +377,7 @@ export default function Post({
                 ? "post-action shared"
                 : "post-action"
             }
-            onClick={
-              handleShare
-            }
+            onClick={handleShare}
             aria-label={
               shared
                 ? "Shared"
@@ -466,9 +385,7 @@ export default function Post({
             }
           >
             <span className="post-action-icon">
-              {shared
-                ? "✓"
-                : "↗"}
+              {shared ? "✓" : "↗"}
             </span>
 
             <span>
@@ -477,6 +394,7 @@ export default function Post({
                 : "Share"}
             </span>
           </button>
+
         </div>
       </div>
     </article>
