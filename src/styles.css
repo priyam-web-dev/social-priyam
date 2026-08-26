@@ -9132,4 +9132,50 @@ button:active:not(:disabled) {
     object-fit: cover;
     object-position: center;
   }
+}/* =========================================================
+   CREATE MODAL IMAGE FIX
+   ========================================================= */
+
+.create-modal {
+  width: min(660px, calc(100vw - 40px));
+  max-width: 660px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.create-modal img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 520px;
+  object-fit: contain;
+  object-position: center;
+  box-sizing: border-box;
+}
+
+.create-modal picture {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.create-modal [class*="image"],
+.create-modal [class*="preview"] {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 700px) {
+  .create-modal {
+    width: calc(100vw - 28px);
+    max-width: calc(100vw - 28px);
+    padding: 18px;
+  }
+
+  .create-modal img {
+    max-height: 400px;
+  }
 }
