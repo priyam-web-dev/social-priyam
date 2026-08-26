@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import PageIntro from "../components/PageIntro";
 import Composer from "../components/Composer";
@@ -33,58 +37,136 @@ function getAvatarUrl(user) {
 }
 
 function formatTime(dateString) {
-  if (!dateString) return "now";
+  if (!dateString) {
+    return "now";
+  }
 
   const date = new Date(dateString);
   const now = new Date();
 
-  const diff = Math.max(0, now.getTime() - date.getTime());
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
+  const diff = Math.max(
+    0,
+    now.getTime() - date.getTime()
+  );
 
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m`;
-  if (hours < 24) return `${hours}h`;
-  if (days < 7) return `${days}d`;
+  const minutes = Math.floor(
+    diff / 60000
+  );
 
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
+  const hours = Math.floor(
+    diff / 3600000
+  );
+
+  const days = Math.floor(
+    diff / 86400000
+  );
+
+  if (minutes < 1) {
+    return "now";
+  }
+
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+
+  if (hours < 24) {
+    return `${hours}h`;
+  }
+
+  if (days < 7) {
+    return `${days}d`;
+  }
+
+  return date.toLocaleDateString(
+    undefined,
+    {
+      day: "numeric",
+      month: "short",
+    }
+  );
 }
 
 function normalizePost(row) {
   return {
     id: row.id,
-    name: row.author_name || "User",
-    handle: row.author_username || "user",
-    avatarUrl: row.author_avatar || "",
-    text: row.content || "",
-    imageUrl: row.image_url || "",
-    time: formatTime(row.created_at),
-    createdAt: row.created_at,
-    likes: Number(row.likes ?? row.likes_count ?? 0),
-    replies: Number(row.replies ?? row.replies_count ?? 0),
-    reposts: Number(row.reposts ?? row.reposts_count ?? 0),
-    authorId: row.author_id,
+
+    name:
+      row.author_name ||
+      "User",
+
+    handle:
+      row.author_username ||
+      "user",
+
+    avatarUrl:
+      row.author_avatar ||
+      "",
+
+    text:
+      row.content ||
+      "",
+
+    imageUrl:
+      row.image_url ||
+      "",
+
+    time:
+      formatTime(row.created_at),
+
+    createdAt:
+      row.created_at,
+
+    likes: Number(
+      row.likes ??
+        row.likes_count ??
+        0
+    ),
+
+    replies: Number(
+      row.replies ??
+        row.replies_count ??
+        0
+    ),
+
+    reposts: Number(
+      row.reposts ??
+        row.reposts_count ??
+        0
+    ),
+
+    authorId:
+      row.author_id,
   };
 }
 
 export default function Home() {
   const { user } = useAuth();
 
-  const [posts, setPosts] = useState([]);
-  const [feedMode, setFeedMode] = useState("For you");
-  const [loading, setLoading] = useState(true);
-  const [posting, setPosting] = useState(false);
-  const [error, setError] = useState("");
+  const [posts, setPosts] =
+    useState([]);
+
+  const [feedMode, setFeedMode] =
+    useState("For you");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [posting, setPosting] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
 
   const currentUser = useMemo(
     () => ({
-      name: getDisplayName(user),
-      username: getUsername(user),
-      avatarUrl: getAvatarUrl(user),
+      name:
+        getDisplayName(user),
+
+      username:
+        getUsername(user),
+
+      avatarUrl:
+        getAvatarUrl(user),
     }),
     [user]
   );
@@ -93,20 +175,41 @@ export default function Home() {
     setLoading(true);
     setError("");
 
-    const { data, error: fetchError } = await supabase
+    const {
+      data,
+      error: fetchError,
+    } = await supabase
       .from("posts")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        }
+      );
 
     if (fetchError) {
-      console.error("Failed to load posts:", fetchError);
-      setError("Couldn't load your feed.");
+      console.error(
+        "Failed to load posts:",
+        fetchError
+      );
+
+      setError(
+        "Couldn't load your feed."
+      );
+
       setPosts([]);
       setLoading(false);
+
       return;
     }
 
-    setPosts((data || []).map(normalizePost));
+    setPosts(
+      (data || []).map(
+        normalizePost
+      )
+    );
+
     setLoading(false);
   }
 
@@ -114,8 +217,62 @@ export default function Home() {
     loadPosts();
   }, []);
 
-  async function handleCreatePost(text) {
-    if (!user?.id || !text.trim()) {
+  /*
+   * Receive posts created from CreateModal.
+   *
+   * CreateModal has already saved the row
+   * to Supabase, so we only update the UI here.
+   */
+  useEffect(() => {
+    function handlePostCreated(event) {
+      const row = event.detail;
+
+      if (!row) {
+        return;
+      }
+
+      const normalized =
+        normalizePost(row);
+
+      setPosts((current) => {
+        const alreadyExists =
+          current.some(
+            (post) =>
+              String(post.id) ===
+              String(normalized.id)
+          );
+
+        if (alreadyExists) {
+          return current;
+        }
+
+        return [
+          normalized,
+          ...current,
+        ];
+      });
+    }
+
+    window.addEventListener(
+      "social:post-created",
+      handlePostCreated
+    );
+
+    return () => {
+      window.removeEventListener(
+        "social:post-created",
+        handlePostCreated
+      );
+    };
+  }, []);
+
+  async function handleCreatePost(
+    text
+  ) {
+    if (
+      !user?.id ||
+      !text.trim()
+    ) {
       return;
     }
 
@@ -123,28 +280,52 @@ export default function Home() {
     setError("");
 
     const newPost = {
-      author_id: user.id,
-      author_name: currentUser.name,
-      author_username: currentUser.username,
-      author_avatar: currentUser.avatarUrl || null,
-      content: text.trim(),
+      author_id:
+        user.id,
+
+      author_name:
+        currentUser.name,
+
+      author_username:
+        currentUser.username,
+
+      author_avatar:
+        currentUser.avatarUrl ||
+        null,
+
+      content:
+        text.trim(),
+
+      image_url:
+        null,
+
       likes: 0,
       replies: 0,
       reposts: 0,
     };
 
-    const { data, error: insertError } = await supabase
+    const {
+      data,
+      error: insertError,
+    } = await supabase
       .from("posts")
       .insert(newPost)
       .select()
       .single();
 
     if (insertError) {
-      console.error("Failed to create post:", insertError);
-      setError(
-        insertError.message || "Couldn't publish your post."
+      console.error(
+        "Failed to create post:",
+        insertError
       );
+
+      setError(
+        insertError.message ||
+          "Couldn't publish your post."
+      );
+
       setPosting(false);
+
       return;
     }
 
@@ -156,148 +337,229 @@ export default function Home() {
     setPosting(false);
   }
 
-  async function handleLike(id) {
+  async function handleLike(
+    id,
+    nextLiked
+  ) {
+    const post =
+      posts.find(
+        (item) =>
+          item.id === id
+      );
+
+    if (!post) {
+      return;
+    }
+
+    const nextLikes =
+      nextLiked
+        ? post.likes + 1
+        : Math.max(
+            0,
+            post.likes - 1
+          );
+
     setPosts((current) =>
-      current.map((post) =>
-        post.id === id
-          ? {
-              ...post,
-              likes: post.likes + 1,
-            }
-          : post
+      current.map(
+        (item) =>
+          item.id === id
+            ? {
+                ...item,
+                likes:
+                  nextLikes,
+              }
+            : item
       )
     );
 
-    const post = posts.find((item) => item.id === id);
-
-    if (!post) return;
-
-    const { error: updateError } = await supabase
+    const {
+      error: updateError,
+    } = await supabase
       .from("posts")
       .update({
-        likes: post.likes + 1,
+        likes:
+          nextLikes,
       })
       .eq("id", id);
 
     if (updateError) {
-      console.error("Like update failed:", updateError);
+      console.error(
+        "Like update failed:",
+        updateError
+      );
 
       setPosts((current) =>
-        current.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                likes: Math.max(0, item.likes - 1),
-              }
-            : item
+        current.map(
+          (item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  likes:
+                    post.likes,
+                }
+              : item
         )
       );
     }
   }
 
   async function handleReply(id) {
-    const post = posts.find((item) => item.id === id);
+    const post =
+      posts.find(
+        (item) =>
+          item.id === id
+      );
 
-    if (!post) return;
+    if (!post) {
+      return;
+    }
 
-    const nextReplies = post.replies + 1;
+    const nextReplies =
+      post.replies + 1;
 
     setPosts((current) =>
-      current.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              replies: nextReplies,
-            }
-          : item
+      current.map(
+        (item) =>
+          item.id === id
+            ? {
+                ...item,
+                replies:
+                  nextReplies,
+              }
+            : item
       )
     );
 
-    const { error: updateError } = await supabase
+    const {
+      error: updateError,
+    } = await supabase
       .from("posts")
       .update({
-        replies: nextReplies,
+        replies:
+          nextReplies,
       })
       .eq("id", id);
 
     if (updateError) {
-      console.error("Reply update failed:", updateError);
+      console.error(
+        "Reply update failed:",
+        updateError
+      );
 
       setPosts((current) =>
-        current.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                replies: post.replies,
-              }
-            : item
+        current.map(
+          (item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  replies:
+                    post.replies,
+                }
+              : item
         )
       );
     }
   }
 
-  async function handleRepost(id) {
-    const post = posts.find((item) => item.id === id);
+  async function handleRepost(
+    id,
+    nextReposted
+  ) {
+    const post =
+      posts.find(
+        (item) =>
+          item.id === id
+      );
 
-    if (!post) return;
+    if (!post) {
+      return;
+    }
 
-    const nextReposts = post.reposts + 1;
+    const nextReposts =
+      nextReposted
+        ? post.reposts + 1
+        : Math.max(
+            0,
+            post.reposts - 1
+          );
 
     setPosts((current) =>
-      current.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              reposts: nextReposts,
-            }
-          : item
+      current.map(
+        (item) =>
+          item.id === id
+            ? {
+                ...item,
+                reposts:
+                  nextReposts,
+              }
+            : item
       )
     );
 
-    const { error: updateError } = await supabase
+    const {
+      error: updateError,
+    } = await supabase
       .from("posts")
       .update({
-        reposts: nextReposts,
+        reposts:
+          nextReposts,
       })
       .eq("id", id);
 
     if (updateError) {
-      console.error("Repost update failed:", updateError);
+      console.error(
+        "Repost update failed:",
+        updateError
+      );
 
       setPosts((current) =>
-        current.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                reposts: post.reposts,
-              }
-            : item
+        current.map(
+          (item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  reposts:
+                    post.reposts,
+                }
+              : item
         )
       );
     }
   }
 
-  const visiblePosts = useMemo(() => {
-    if (feedMode === "Fresh") {
-      return [...posts].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
-      );
-    }
+  const visiblePosts =
+    useMemo(() => {
+      if (feedMode === "Fresh") {
+        return [...posts].sort(
+          (a, b) =>
+            new Date(
+              b.createdAt
+            ).getTime() -
+            new Date(
+              a.createdAt
+            ).getTime()
+        );
+      }
 
-    if (feedMode === "Popular") {
-      return [...posts].sort(
-        (a, b) =>
-          b.likes +
-          b.replies +
-          b.reposts -
-          (a.likes + a.replies + a.reposts)
-      );
-    }
+      if (
+        feedMode === "Popular"
+      ) {
+        return [...posts].sort(
+          (a, b) =>
+            b.likes +
+            b.replies +
+            b.reposts -
+            (a.likes +
+              a.replies +
+              a.reposts)
+        );
+      }
 
-    return posts;
-  }, [posts, feedMode]);
+      return posts;
+    }, [
+      posts,
+      feedMode,
+    ]);
 
   return (
     <>
@@ -307,7 +569,11 @@ export default function Home() {
       />
 
       <div className="feed-switcher">
-        {["For you", "Fresh", "Popular"].map((mode) => (
+        {[
+          "For you",
+          "Fresh",
+          "Popular",
+        ].map((mode) => (
           <button
             type="button"
             key={mode}
@@ -316,7 +582,9 @@ export default function Home() {
                 ? "feed-switch active"
                 : "feed-switch"
             }
-            onClick={() => setFeedMode(mode)}
+            onClick={() =>
+              setFeedMode(mode)
+            }
           >
             {mode}
           </button>
@@ -335,17 +603,31 @@ export default function Home() {
 
       <section className="composer">
         <Avatar
-          name={currentUser.name}
-          src={currentUser.avatarUrl || undefined}
+          name={
+            currentUser.name
+          }
+          src={
+            currentUser.avatarUrl ||
+            undefined
+          }
         />
 
-        <Composer onSubmit={handleCreatePost} />
+        <Composer
+          onSubmit={
+            handleCreatePost
+          }
+        />
       </section>
 
       {error && (
         <div className="feed-error">
-          <strong>Something went wrong.</strong>
-          <span>{error}</span>
+          <strong>
+            Something went wrong.
+          </strong>
+
+          <span>
+            {error}
+          </span>
         </div>
       )}
 
@@ -358,24 +640,49 @@ export default function Home() {
       <div className="feed">
         {loading ? (
           <div className="feed-empty">
-            <strong>Loading your space.</strong>
+            <strong>
+              Loading your space.
+            </strong>
+
             <span>
               Fetching the latest conversations...
             </span>
           </div>
-        ) : visiblePosts.length > 0 ? (
-          visiblePosts.map((post) => (
-            <Post
-              key={post.id}
-              {...post}
-              onLike={() => handleLike(post.id)}
-              onReply={() => handleReply(post.id)}
-              onRepost={() => handleRepost(post.id)}
-            />
-          ))
+        ) : visiblePosts.length >
+          0 ? (
+          visiblePosts.map(
+            (post) => (
+              <Post
+                key={post.id}
+                {...post}
+                onLike={(nextLiked) =>
+                  handleLike(
+                    post.id,
+                    nextLiked
+                  )
+                }
+                onReply={() =>
+                  handleReply(
+                    post.id
+                  )
+                }
+                onRepost={(
+                  nextReposted
+                ) =>
+                  handleRepost(
+                    post.id,
+                    nextReposted
+                  )
+                }
+              />
+            )
+          )
         ) : (
           <div className="feed-empty">
-            <strong>Your feed is quiet.</strong>
+            <strong>
+              Your feed is quiet.
+            </strong>
+
             <span>
               Be the first person to say something.
             </span>

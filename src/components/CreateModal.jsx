@@ -40,16 +40,14 @@ function getAvatarUrl(user) {
 }
 
 function getFileExtension(file) {
-  const extension = file.name
-    ?.split(".")
-    .pop()
-    ?.toLowerCase();
+  const extension =
+    file?.name?.split(".").pop()?.toLowerCase() || "jpg";
 
   if (extension === "jpeg") {
     return "jpg";
   }
 
-  return extension || "jpg";
+  return extension;
 }
 
 export default function CreateModal({ onClose }) {
@@ -80,7 +78,7 @@ export default function CreateModal({ onClose }) {
 
       if (
         (event.metaKey || event.ctrlKey) &&
-        event.key.toLowerCase() === "enter"
+        event.key === "Enter"
       ) {
         event.preventDefault();
 
@@ -93,13 +91,16 @@ export default function CreateModal({ onClose }) {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
     };
   }, [posting, text, imageFile]);
 
   useEffect(() => {
     return () => {
-      if (imagePreview) {
+      if (imagePreview?.startsWith("blob:")) {
         URL.revokeObjectURL(imagePreview);
       }
     };
@@ -130,7 +131,7 @@ export default function CreateModal({ onClose }) {
       return;
     }
 
-    if (imagePreview) {
+    if (imagePreview?.startsWith("blob:")) {
       URL.revokeObjectURL(imagePreview);
     }
 
@@ -141,7 +142,7 @@ export default function CreateModal({ onClose }) {
   }
 
   function removeImage() {
-    if (imagePreview) {
+    if (imagePreview?.startsWith("blob:")) {
       URL.revokeObjectURL(imagePreview);
     }
 
@@ -161,26 +162,52 @@ export default function CreateModal({ onClose }) {
 
     const extension = getFileExtension(imageFile);
 
-    const filePath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+    const filePath =
+      `${user.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
 
-    const { error: uploadError } =
-      await supabase.storage
-        .from("posts")
-        .upload(filePath, imageFile, {
-          cacheControl: "3600",
-          contentType: imageFile.type,
-          upsert: false,
-        });
+    const {
+      data,
+      error: uploadError,
+    } = await supabase.storage
+      .from("posts")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        contentType: imageFile.type,
+        upsert: false,
+      });
 
     if (uploadError) {
-      throw uploadError;
+      console.error(
+        "Supabase image upload failed:",
+        uploadError
+      );
+
+      throw new Error(
+        uploadError.message ||
+          "Image upload failed."
+      );
+    }
+
+    if (!data?.path) {
+      throw new Error(
+        "Image uploaded, but Supabase did not return a file path."
+      );
     }
 
     const {
-      data: { publicUrl },
+      data: publicUrlData,
     } = supabase.storage
       .from("posts")
-      .getPublicUrl(filePath);
+      .getPublicUrl(data.path);
+
+    const publicUrl =
+      publicUrlData?.publicUrl || "";
+
+    if (!publicUrl) {
+      throw new Error(
+        "Image uploaded, but a public image URL could not be created."
+      );
+    }
 
     return publicUrl;
   }
@@ -193,29 +220,27 @@ export default function CreateModal({ onClose }) {
     }
 
     if (!user?.id) {
-      setError("You need to be logged in to post.");
+      setError(
+        "You need to be logged in to post."
+      );
       return;
     }
 
     setPosting(true);
     setError("");
 
-    let uploadedImageUrl = "";
-
     try {
       /*
        * STEP 1
-       * Upload image to Supabase Storage.
+       * Upload image first.
        */
-      if (imageFile) {
-        uploadedImageUrl = await uploadImage();
-      }
+      const imageUrl = await uploadImage();
 
       /*
        * STEP 2
-       * Create the actual database post.
+       * Create the actual database row.
        *
-       * This is the important part that was missing.
+       * image_url is now stored permanently.
        */
       const postPayload = {
         author_id: user.id,
@@ -223,74 +248,56 @@ export default function CreateModal({ onClose }) {
         author_username: username,
         author_avatar: avatarUrl || null,
         content: cleanText,
-        image_url: uploadedImageUrl || null,
+        image_url: imageUrl || null,
         likes: 0,
         replies: 0,
         reposts: 0,
       };
 
       const {
-        data: createdPost,
+        data: savedPost,
         error: insertError,
       } = await supabase
         .from("posts")
         .insert(postPayload)
-        .select()
+        .select("*")
         .single();
 
       if (insertError) {
-        /*
-         * If the database insert fails after the image
-         * uploaded, try to remove the orphaned image.
-         */
-        if (uploadedImageUrl) {
-          try {
-            const url = new URL(uploadedImageUrl);
-            const marker = "/storage/v1/object/public/posts/";
+        console.error(
+          "Post insert failed:",
+          insertError
+        );
 
-            const markerIndex =
-              url.pathname.indexOf(marker);
-
-            if (markerIndex !== -1) {
-              const storagePath = decodeURIComponent(
-                url.pathname.slice(
-                  markerIndex + marker.length
-                )
-              );
-
-              await supabase.storage
-                .from("posts")
-                .remove([storagePath]);
-            }
-          } catch (cleanupError) {
-            console.error(
-              "Image cleanup failed:",
-              cleanupError
-            );
-          }
-        }
-
-        throw insertError;
+        throw new Error(
+          insertError.message ||
+            "Couldn't save your post."
+        );
       }
 
       /*
        * STEP 3
-       * Tell the currently mounted feed that a new post
-       * was created.
+       * Tell Home/Profile immediately.
+       *
+       * The database remains the source of truth,
+       * so refresh will also keep the post.
        */
       window.dispatchEvent(
         new CustomEvent("social:post-created", {
-          detail: createdPost,
+          detail: savedPost,
         })
       );
 
       /*
        * STEP 4
-       * Close modal after successful DB insert.
+       * Clean local state.
        */
+      setText("");
+      removeImage();
+
       window.setTimeout(() => {
         onClose();
-      }, 120);
+      }, 150);
     } catch (postError) {
       console.error(
         "Failed to publish post:",
@@ -315,10 +322,12 @@ export default function CreateModal({ onClose }) {
     }
   }
 
-  const remaining = MAX_LENGTH - text.length;
+  const remaining =
+    MAX_LENGTH - text.length;
 
   const hasContent =
-    Boolean(text.trim()) || Boolean(imageFile);
+    Boolean(text.trim()) ||
+    Boolean(imageFile);
 
   return (
     <div
@@ -357,12 +366,19 @@ export default function CreateModal({ onClose }) {
         <div className="create-author">
           <Avatar
             name={displayName}
-            src={avatarUrl || undefined}
+            src={
+              avatarUrl || undefined
+            }
           />
 
           <div>
-            <strong>{displayName}</strong>
-            <small>@{username}</small>
+            <strong>
+              {displayName}
+            </strong>
+
+            <small>
+              @{username}
+            </small>
           </div>
         </div>
 
@@ -383,10 +399,31 @@ export default function CreateModal({ onClose }) {
         />
 
         {imagePreview && (
-          <div className="create-image-preview">
+          <div
+            className="create-image-preview"
+            style={{
+              position: "relative",
+              width: "100%",
+              marginTop: "14px",
+              overflow: "hidden",
+              borderRadius: "12px",
+              border:
+                "1px solid var(--line)",
+              background:
+                "var(--surface-2)",
+            }}
+          >
             <img
               src={imagePreview}
               alt="Selected post"
+              style={{
+                display: "block",
+                width: "100%",
+                maxHeight: "420px",
+                objectFit: "contain",
+                background:
+                  "var(--surface-2)",
+              }}
             />
 
             <button
@@ -395,6 +432,21 @@ export default function CreateModal({ onClose }) {
               onClick={removeImage}
               disabled={posting}
               aria-label="Remove selected image"
+              style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                width: "32px",
+                height: "32px",
+                border: "1px solid var(--line)",
+                borderRadius: "50%",
+                background:
+                  "rgba(0,0,0,.72)",
+                color: "#fff",
+                fontSize: "20px",
+                lineHeight: 1,
+                cursor: "pointer",
+              }}
             >
               ×
             </button>
@@ -457,7 +509,9 @@ export default function CreateModal({ onClose }) {
             <button
               type="button"
               className="create-post-button"
-              disabled={!hasContent || posting}
+              disabled={
+                !hasContent || posting
+              }
               onClick={publishPost}
             >
               {posting

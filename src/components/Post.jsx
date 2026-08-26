@@ -1,4 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import Avatar from "./Avatar";
 
@@ -16,24 +20,50 @@ export default function Post({
   onReply,
   onRepost,
 }) {
-  const [liked, setLiked] = useState(false);
-  const [reposted, setReposted] = useState(false);
-  const [shared, setShared] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [likePulse, setLikePulse] = useState(false);
+  const [liked, setLiked] =
+    useState(false);
 
-  const menuRef = useRef(null);
-  const shareTimerRef = useRef(null);
-  const likeTimerRef = useRef(null);
+  const [reposted, setReposted] =
+    useState(false);
 
-  const displayedLikes = likes + (liked ? 1 : 0);
-  const displayedReposts = reposts + (reposted ? 1 : 0);
+  const [shared, setShared] =
+    useState(false);
+
+  const [menuOpen, setMenuOpen] =
+    useState(false);
+
+  const [likePulse, setLikePulse] =
+    useState(false);
+
+  const [imageFailed, setImageFailed] =
+    useState(false);
+
+  const menuRef =
+    useRef(null);
+
+  const shareTimerRef =
+    useRef(null);
+
+  const likeTimerRef =
+    useRef(null);
+
+  const displayedLikes =
+    likes +
+    (liked ? 1 : 0);
+
+  const displayedReposts =
+    reposts +
+    (reposted ? 1 : 0);
 
   useEffect(() => {
-    function handleOutsideClick(event) {
+    function handleOutsideClick(
+      event
+    ) {
       if (
         menuRef.current &&
-        !menuRef.current.contains(event.target)
+        !menuRef.current.contains(
+          event.target
+        )
       ) {
         setMenuOpen(false);
       }
@@ -57,14 +87,22 @@ export default function Post({
   useEffect(() => {
     return () => {
       if (shareTimerRef.current) {
-        window.clearTimeout(shareTimerRef.current);
+        window.clearTimeout(
+          shareTimerRef.current
+        );
       }
 
       if (likeTimerRef.current) {
-        window.clearTimeout(likeTimerRef.current);
+        window.clearTimeout(
+          likeTimerRef.current
+        );
       }
     };
   }, []);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl]);
 
   function handleLike() {
     setLiked((current) => {
@@ -74,12 +112,15 @@ export default function Post({
         setLikePulse(true);
 
         if (likeTimerRef.current) {
-          window.clearTimeout(likeTimerRef.current);
+          window.clearTimeout(
+            likeTimerRef.current
+          );
         }
 
-        likeTimerRef.current = window.setTimeout(() => {
-          setLikePulse(false);
-        }, 420);
+        likeTimerRef.current =
+          window.setTimeout(() => {
+            setLikePulse(false);
+          }, 420);
       } else {
         setLikePulse(false);
       }
@@ -120,8 +161,13 @@ export default function Post({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${name} on QYVRA`,
-          text,
+          title:
+            `${name} on QYVRA`,
+          text:
+            text ||
+            "Check out this post on QYVRA.",
+          url:
+            window.location.href,
         });
 
         showSharedState();
@@ -129,7 +175,11 @@ export default function Post({
       }
 
       if (navigator.clipboard) {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(
+          text ||
+            window.location.href
+        );
+
         showSharedState();
       }
     } catch {
@@ -141,12 +191,15 @@ export default function Post({
     setShared(true);
 
     if (shareTimerRef.current) {
-      window.clearTimeout(shareTimerRef.current);
+      window.clearTimeout(
+        shareTimerRef.current
+      );
     }
 
-    shareTimerRef.current = window.setTimeout(() => {
-      setShared(false);
-    }, 1600);
+    shareTimerRef.current =
+      window.setTimeout(() => {
+        setShared(false);
+      }, 1600);
   }
 
   function closeMenu() {
@@ -157,18 +210,27 @@ export default function Post({
     <article className="post-card">
       <Avatar
         name={name}
-        src={avatarUrl || undefined}
+        src={
+          avatarUrl ||
+          undefined
+        }
       />
 
       <div className="post-body">
         <div className="post-meta">
-          <strong>{name}</strong>
+          <strong>
+            {name}
+          </strong>
 
-          <span>@{handle}</span>
+          <span>
+            @{handle}
+          </span>
 
           <span>·</span>
 
-          <span>{time}</span>
+          <span>
+            {time}
+          </span>
 
           <div
             className="post-menu-wrap"
@@ -178,10 +240,15 @@ export default function Post({
               type="button"
               className="post-more"
               onClick={() =>
-                setMenuOpen((current) => !current)
+                setMenuOpen(
+                  (current) =>
+                    !current
+                )
               }
               aria-label="Post options"
-              aria-expanded={menuOpen}
+              aria-expanded={
+                menuOpen
+              }
               aria-haspopup="menu"
             >
               ···
@@ -195,7 +262,9 @@ export default function Post({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={closeMenu}
+                  onClick={
+                    closeMenu
+                  }
                 >
                   Not interested
                 </button>
@@ -203,7 +272,9 @@ export default function Post({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={closeMenu}
+                  onClick={
+                    closeMenu
+                  }
                 >
                   Mute @{handle}
                 </button>
@@ -211,7 +282,9 @@ export default function Post({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={closeMenu}
+                  onClick={
+                    closeMenu
+                  }
                 >
                   Report post
                 </button>
@@ -223,24 +296,78 @@ export default function Post({
         {text && (
           <p
             className="post-text"
-            onDoubleClick={handleDoubleClick}
+            onDoubleClick={
+              handleDoubleClick
+            }
           >
             {text}
           </p>
         )}
 
-        {imageUrl && (
-          <div className="post-image">
-            <img
-              src={imageUrl}
-              alt="Post attachment"
-              loading="lazy"
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
+        {imageUrl &&
+          !imageFailed && (
+            <div
+              className="post-image"
+              style={{
+                width: "100%",
+                marginTop: text
+                  ? "14px"
+                  : "4px",
+                overflow: "hidden",
+                borderRadius:
+                  "12px",
+                border:
+                  "1px solid var(--line)",
+                background:
+                  "var(--surface-2)",
               }}
-            />
-          </div>
-        )}
+            >
+              <img
+                src={imageUrl}
+                alt="Post attachment"
+                loading="lazy"
+                decoding="async"
+                onError={() =>
+                  setImageFailed(
+                    true
+                  )
+                }
+                style={{
+                  display: "block",
+                  width: "100%",
+                  maxHeight: "620px",
+                  objectFit:
+                    "contain",
+                  objectPosition:
+                    "center",
+                  background:
+                    "var(--surface-2)",
+                }}
+              />
+            </div>
+          )}
+
+        {imageUrl &&
+          imageFailed && (
+            <div
+              className="post-image-error"
+              style={{
+                marginTop: "14px",
+                padding:
+                  "18px",
+                border:
+                  "1px solid var(--line)",
+                borderRadius:
+                  "12px",
+                color:
+                  "var(--muted)",
+                fontSize:
+                  "12px",
+              }}
+            >
+              Image couldn't be loaded.
+            </div>
+          )}
 
         <div className="post-actions">
           <button
@@ -248,34 +375,50 @@ export default function Post({
             className={
               liked
                 ? `post-action ${
-                    likePulse ? "like-pulse" : ""
+                    likePulse
+                      ? "like-pulse"
+                      : ""
                   } active`
                 : "post-action"
             }
-            onClick={handleLike}
-            aria-label={
-              liked ? "Unlike post" : "Like post"
+            onClick={
+              handleLike
             }
-            aria-pressed={liked}
+            aria-label={
+              liked
+                ? "Unlike post"
+                : "Like post"
+            }
+            aria-pressed={
+              liked
+            }
           >
             <span className="post-action-icon">
-              {liked ? "♥" : "♡"}
+              {liked
+                ? "♥"
+                : "♡"}
             </span>
 
-            <span>{displayedLikes}</span>
+            <span>
+              {displayedLikes}
+            </span>
           </button>
 
           <button
             type="button"
             className="post-action"
-            onClick={handleReply}
+            onClick={
+              handleReply
+            }
             aria-label="Reply to post"
           >
             <span className="post-action-icon">
               ○
             </span>
 
-            <span>{replies}</span>
+            <span>
+              {replies}
+            </span>
           </button>
 
           <button
@@ -285,19 +428,25 @@ export default function Post({
                 ? "post-action active reposted"
                 : "post-action"
             }
-            onClick={handleRepost}
+            onClick={
+              handleRepost
+            }
             aria-label={
               reposted
                 ? "Undo repost"
                 : "Repost"
             }
-            aria-pressed={reposted}
+            aria-pressed={
+              reposted
+            }
           >
             <span className="post-action-icon">
               ↻
             </span>
 
-            <span>{displayedReposts}</span>
+            <span>
+              {displayedReposts}
+            </span>
           </button>
 
           <button
@@ -307,17 +456,25 @@ export default function Post({
                 ? "post-action shared"
                 : "post-action"
             }
-            onClick={handleShare}
+            onClick={
+              handleShare
+            }
             aria-label={
-              shared ? "Shared" : "Share post"
+              shared
+                ? "Shared"
+                : "Share post"
             }
           >
             <span className="post-action-icon">
-              {shared ? "✓" : "↗"}
+              {shared
+                ? "✓"
+                : "↗"}
             </span>
 
             <span>
-              {shared ? "Shared" : "Share"}
+              {shared
+                ? "Shared"
+                : "Share"}
             </span>
           </button>
         </div>
