@@ -9253,3 +9253,51 @@ button:active:not(:disabled) {
     max-height: 320px;
   }
 }
+.post-image-wrap {
+  position: relative;
+  width: 100%;
+  margin-top: 18px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface-soft, #f2f0eb);
+}
+
+.post-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 720px;
+  object-fit: contain;
+  border-radius: inherit;
+}
+
+.post-image-loading {
+  position: absolute;
+  inset: 0;
+  min-height: 240px;
+  background: linear-gradient(
+    90deg,
+    rgba(128, 128, 128, 0.08),
+    rgba(128, 128, 128, 0.16),
+    rgba(128, 128, 128, 0.08)
+  );
+}
+
+.post-image-wrap:not(.loaded) .post-image {
+  opacity: 0;
+}
+
+.post-image-wrap.loaded .post-image {
+  opacity: 1;
+}
+
+@media (max-width: 700px) {
+  .post-image-wrap {
+    margin-top: 14px;
+    border-radius: 12px;
+  }
+
+  .post-image {
+    max-height: 560px;
+  }
+}
