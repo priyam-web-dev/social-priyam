@@ -107,7 +107,7 @@ function AppShell({ user, onLogout }) {
           onClick={() => navigate("/")}
           aria-label="Go home"
         >
-          <b>S</b>
+          <b>Q</b>
           <span>QYVRA</span>
         </button>
 
