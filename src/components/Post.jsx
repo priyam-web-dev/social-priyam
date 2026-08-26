@@ -6,6 +6,7 @@ export default function Post({
   name,
   handle,
   text,
+  imageUrl = "",
   time = "2h",
   replies = 8,
   likes = 42,
@@ -19,13 +20,20 @@ export default function Post({
   const [shared, setShared] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [likePulse, setLikePulse] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const menuRef = useRef(null);
   const shareTimerRef = useRef(null);
   const likeTimerRef = useRef(null);
 
-  const displayedLikes = likes + (liked ? 1 : 0);
-  const displayedReposts = reposts + (reposted ? 1 : 0);
+  const displayedLikes =
+    likes + (liked ? 1 : 0);
+
+  const displayedReposts =
+    reposts + (reposted ? 1 : 0);
+
+  const showImage =
+    Boolean(imageUrl) && !imageError;
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -55,11 +63,15 @@ export default function Post({
   useEffect(() => {
     return () => {
       if (shareTimerRef.current) {
-        window.clearTimeout(shareTimerRef.current);
+        window.clearTimeout(
+          shareTimerRef.current
+        );
       }
 
       if (likeTimerRef.current) {
-        window.clearTimeout(likeTimerRef.current);
+        window.clearTimeout(
+          likeTimerRef.current
+        );
       }
     };
   }, []);
@@ -72,12 +84,15 @@ export default function Post({
         setLikePulse(true);
 
         if (likeTimerRef.current) {
-          window.clearTimeout(likeTimerRef.current);
+          window.clearTimeout(
+            likeTimerRef.current
+          );
         }
 
-        likeTimerRef.current = window.setTimeout(() => {
-          setLikePulse(false);
-        }, 420);
+        likeTimerRef.current =
+          window.setTimeout(() => {
+            setLikePulse(false);
+          }, 420);
       } else {
         setLikePulse(false);
       }
@@ -118,8 +133,9 @@ export default function Post({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${name} on Social`,
+          title: `${name} on Qyvra`,
           text,
+          url: window.location.href,
         });
 
         showSharedState();
@@ -127,7 +143,12 @@ export default function Post({
       }
 
       if (navigator.clipboard) {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(
+          text
+            ? `${text}\n\n${window.location.href}`
+            : window.location.href
+        );
+
         showSharedState();
       }
     } catch {
@@ -139,12 +160,15 @@ export default function Post({
     setShared(true);
 
     if (shareTimerRef.current) {
-      window.clearTimeout(shareTimerRef.current);
+      window.clearTimeout(
+        shareTimerRef.current
+      );
     }
 
-    shareTimerRef.current = window.setTimeout(() => {
-      setShared(false);
-    }, 1600);
+    shareTimerRef.current =
+      window.setTimeout(() => {
+        setShared(false);
+      }, 1600);
   }
 
   function closeMenu() {
@@ -173,7 +197,9 @@ export default function Post({
               type="button"
               className="post-more"
               onClick={() =>
-                setMenuOpen((current) => !current)
+                setMenuOpen(
+                  (current) => !current
+                )
               }
               aria-label="Post options"
               aria-expanded={menuOpen}
@@ -215,12 +241,34 @@ export default function Post({
           </div>
         </div>
 
-        <p
-          className="post-text"
-          onDoubleClick={handleDoubleClick}
-        >
-          {text}
-        </p>
+        {text && (
+          <p
+            className="post-text"
+            onDoubleClick={
+              handleDoubleClick
+            }
+          >
+            {text}
+          </p>
+        )}
+
+        {showImage && (
+          <div className="post-image">
+            <img
+              src={imageUrl}
+              alt={
+                text
+                  ? text.slice(0, 120)
+                  : `Photo shared by ${name}`
+              }
+              loading="lazy"
+              draggable="false"
+              onError={() =>
+                setImageError(true)
+              }
+            />
+          </div>
+        )}
 
         <div className="post-actions">
           <button
@@ -228,13 +276,17 @@ export default function Post({
             className={
               liked
                 ? `post-action active ${
-                    likePulse ? "like-pulse" : ""
+                    likePulse
+                      ? "like-pulse"
+                      : ""
                   }`
                 : "post-action"
             }
             onClick={handleLike}
             aria-label={
-              liked ? "Unlike post" : "Like post"
+              liked
+                ? "Unlike post"
+                : "Like post"
             }
             aria-pressed={liked}
           >
@@ -289,7 +341,9 @@ export default function Post({
             }
             onClick={handleShare}
             aria-label={
-              shared ? "Shared" : "Share post"
+              shared
+                ? "Shared"
+                : "Share post"
             }
           >
             <span className="post-action-icon">
@@ -297,7 +351,9 @@ export default function Post({
             </span>
 
             <span>
-              {shared ? "Shared" : "Share"}
+              {shared
+                ? "Shared"
+                : "Share"}
             </span>
           </button>
         </div>
