@@ -33,37 +33,20 @@ function getAvatarUrl(user) {
 }
 
 function formatTime(dateString) {
-  if (!dateString) {
-    return "now";
-  }
+  if (!dateString) return "now";
 
   const date = new Date(dateString);
   const now = new Date();
 
-  const diff = Math.max(
-    0,
-    now.getTime() - date.getTime()
-  );
-
+  const diff = Math.max(0, now.getTime() - date.getTime());
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
-  if (minutes < 1) {
-    return "now";
-  }
-
-  if (minutes < 60) {
-    return `${minutes}m`;
-  }
-
-  if (hours < 24) {
-    return `${hours}h`;
-  }
-
-  if (days < 7) {
-    return `${days}d`;
-  }
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  if (hours < 24) return `${hours}h`;
+  if (days < 7) return `${days}d`;
 
   return date.toLocaleDateString(undefined, {
     day: "numeric",
@@ -81,9 +64,9 @@ function normalizePost(row) {
     imageUrl: row.image_url || "",
     time: formatTime(row.created_at),
     createdAt: row.created_at,
-    likes: Number(row.likes || 0),
-    replies: Number(row.replies || 0),
-    reposts: Number(row.reposts || 0),
+    likes: Number(row.likes ?? row.likes_count ?? 0),
+    replies: Number(row.replies ?? row.replies_count ?? 0),
+    reposts: Number(row.reposts ?? row.reposts_count ?? 0),
     authorId: row.author_id,
   };
 }
@@ -110,80 +93,25 @@ export default function Home() {
     setLoading(true);
     setError("");
 
-    const {
-      data,
-      error: fetchError,
-    } = await supabase
+    const { data, error: fetchError } = await supabase
       .from("posts")
       .select("*")
-      .order("created_at", {
-        ascending: false,
-      });
+      .order("created_at", { ascending: false });
 
     if (fetchError) {
-      console.error(
-        "Failed to load posts:",
-        fetchError
-      );
-
+      console.error("Failed to load posts:", fetchError);
       setError("Couldn't load your feed.");
       setPosts([]);
       setLoading(false);
       return;
     }
 
-    setPosts(
-      (data || []).map(normalizePost)
-    );
-
+    setPosts((data || []).map(normalizePost));
     setLoading(false);
   }
 
   useEffect(() => {
     loadPosts();
-  }, []);
-
-  /*
-   * Listen for posts created from CreateModal.
-   */
-  useEffect(() => {
-    function handlePostCreated(event) {
-      const createdPost = event.detail;
-
-      if (!createdPost) {
-        return;
-      }
-
-      const normalized = normalizePost(
-        createdPost
-      );
-
-      setPosts((current) => {
-        const alreadyExists = current.some(
-          (post) =>
-            String(post.id) ===
-            String(normalized.id)
-        );
-
-        if (alreadyExists) {
-          return current;
-        }
-
-        return [normalized, ...current];
-      });
-    }
-
-    window.addEventListener(
-      "social:post-created",
-      handlePostCreated
-    );
-
-    return () => {
-      window.removeEventListener(
-        "social:post-created",
-        handlePostCreated
-      );
-    };
   }, []);
 
   async function handleCreatePost(text) {
@@ -198,35 +126,24 @@ export default function Home() {
       author_id: user.id,
       author_name: currentUser.name,
       author_username: currentUser.username,
-      author_avatar:
-        currentUser.avatarUrl || null,
+      author_avatar: currentUser.avatarUrl || null,
       content: text.trim(),
-      image_url: null,
       likes: 0,
       replies: 0,
       reposts: 0,
     };
 
-    const {
-      data,
-      error: insertError,
-    } = await supabase
+    const { data, error: insertError } = await supabase
       .from("posts")
       .insert(newPost)
       .select()
       .single();
 
     if (insertError) {
-      console.error(
-        "Failed to create post:",
-        insertError
-      );
-
+      console.error("Failed to create post:", insertError);
       setError(
-        insertError.message ||
-          "Couldn't publish your post."
+        insertError.message || "Couldn't publish your post."
       );
-
       setPosting(false);
       return;
     }
@@ -251,17 +168,11 @@ export default function Home() {
       )
     );
 
-    const post = posts.find(
-      (item) => item.id === id
-    );
+    const post = posts.find((item) => item.id === id);
 
-    if (!post) {
-      return;
-    }
+    if (!post) return;
 
-    const {
-      error: updateError,
-    } = await supabase
+    const { error: updateError } = await supabase
       .from("posts")
       .update({
         likes: post.likes + 1,
@@ -269,20 +180,14 @@ export default function Home() {
       .eq("id", id);
 
     if (updateError) {
-      console.error(
-        "Like update failed:",
-        updateError
-      );
+      console.error("Like update failed:", updateError);
 
       setPosts((current) =>
         current.map((item) =>
           item.id === id
             ? {
                 ...item,
-                likes: Math.max(
-                  0,
-                  item.likes - 1
-                ),
+                likes: Math.max(0, item.likes - 1),
               }
             : item
         )
@@ -291,16 +196,11 @@ export default function Home() {
   }
 
   async function handleReply(id) {
-    const post = posts.find(
-      (item) => item.id === id
-    );
+    const post = posts.find((item) => item.id === id);
 
-    if (!post) {
-      return;
-    }
+    if (!post) return;
 
-    const nextReplies =
-      post.replies + 1;
+    const nextReplies = post.replies + 1;
 
     setPosts((current) =>
       current.map((item) =>
@@ -313,9 +213,7 @@ export default function Home() {
       )
     );
 
-    const {
-      error: updateError,
-    } = await supabase
+    const { error: updateError } = await supabase
       .from("posts")
       .update({
         replies: nextReplies,
@@ -323,10 +221,7 @@ export default function Home() {
       .eq("id", id);
 
     if (updateError) {
-      console.error(
-        "Reply update failed:",
-        updateError
-      );
+      console.error("Reply update failed:", updateError);
 
       setPosts((current) =>
         current.map((item) =>
@@ -342,16 +237,11 @@ export default function Home() {
   }
 
   async function handleRepost(id) {
-    const post = posts.find(
-      (item) => item.id === id
-    );
+    const post = posts.find((item) => item.id === id);
 
-    if (!post) {
-      return;
-    }
+    if (!post) return;
 
-    const nextReposts =
-      post.reposts + 1;
+    const nextReposts = post.reposts + 1;
 
     setPosts((current) =>
       current.map((item) =>
@@ -364,9 +254,7 @@ export default function Home() {
       )
     );
 
-    const {
-      error: updateError,
-    } = await supabase
+    const { error: updateError } = await supabase
       .from("posts")
       .update({
         reposts: nextReposts,
@@ -374,10 +262,7 @@ export default function Home() {
       .eq("id", id);
 
     if (updateError) {
-      console.error(
-        "Repost update failed:",
-        updateError
-      );
+      console.error("Repost update failed:", updateError);
 
       setPosts((current) =>
         current.map((item) =>
@@ -407,9 +292,7 @@ export default function Home() {
           b.likes +
           b.replies +
           b.reposts -
-          (a.likes +
-            a.replies +
-            a.reposts)
+          (a.likes + a.replies + a.reposts)
       );
     }
 
@@ -424,11 +307,7 @@ export default function Home() {
       />
 
       <div className="feed-switcher">
-        {[
-          "For you",
-          "Fresh",
-          "Popular",
-        ].map((mode) => (
+        {["For you", "Fresh", "Popular"].map((mode) => (
           <button
             type="button"
             key={mode}
@@ -437,9 +316,7 @@ export default function Home() {
                 ? "feed-switch active"
                 : "feed-switch"
             }
-            onClick={() =>
-              setFeedMode(mode)
-            }
+            onClick={() => setFeedMode(mode)}
           >
             {mode}
           </button>
@@ -459,23 +336,15 @@ export default function Home() {
       <section className="composer">
         <Avatar
           name={currentUser.name}
-          src={
-            currentUser.avatarUrl ||
-            undefined
-          }
+          src={currentUser.avatarUrl || undefined}
         />
 
-        <Composer
-          onSubmit={handleCreatePost}
-        />
+        <Composer onSubmit={handleCreatePost} />
       </section>
 
       {error && (
         <div className="feed-error">
-          <strong>
-            Something went wrong.
-          </strong>
-
+          <strong>Something went wrong.</strong>
           <span>{error}</span>
         </div>
       )}
@@ -489,13 +358,9 @@ export default function Home() {
       <div className="feed">
         {loading ? (
           <div className="feed-empty">
-            <strong>
-              Loading your space.
-            </strong>
-
+            <strong>Loading your space.</strong>
             <span>
-              Fetching the latest
-              conversations...
+              Fetching the latest conversations...
             </span>
           </div>
         ) : visiblePosts.length > 0 ? (
@@ -503,26 +368,16 @@ export default function Home() {
             <Post
               key={post.id}
               {...post}
-              onLike={() =>
-                handleLike(post.id)
-              }
-              onReply={() =>
-                handleReply(post.id)
-              }
-              onRepost={() =>
-                handleRepost(post.id)
-              }
+              onLike={() => handleLike(post.id)}
+              onReply={() => handleReply(post.id)}
+              onRepost={() => handleRepost(post.id)}
             />
           ))
         ) : (
           <div className="feed-empty">
-            <strong>
-              Your feed is quiet.
-            </strong>
-
+            <strong>Your feed is quiet.</strong>
             <span>
-              Be the first person to say
-              something.
+              Be the first person to say something.
             </span>
           </div>
         )}
