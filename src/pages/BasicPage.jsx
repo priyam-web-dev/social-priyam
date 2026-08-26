@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Avatar from "../components/Avatar";
 import { supabase } from "../lib/supabase";
@@ -35,6 +35,14 @@ function getFallbackAvatar(user) {
   );
 }
 
+function cleanUsername(value = "") {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, 24);
+}
+
 function ProfilePage({ user }) {
   const [activeTab, setActiveTab] = useState("Posts");
 
@@ -49,8 +57,22 @@ function ProfilePage({ user }) {
   const [posts, setPosts] = useState([]);
 
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editMessage, setEditMessage] = useState("");
+
+  const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editAvatarUrl, setEditAvatarUrl] = useState("");
+
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
+
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (!user?.id) {
@@ -60,6 +82,14 @@ function ProfilePage({ user }) {
 
     loadProfile();
   }, [user?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
   async function loadProfile() {
     setLoading(true);
@@ -132,9 +162,6 @@ function ProfilePage({ user }) {
       /*
        * ------------------------------------------
        * 3. LOAD FOLLOWER COUNT
-       *
-       * Someone follows this user:
-       * following_id = current user's id
        * ------------------------------------------
        */
 
@@ -159,9 +186,6 @@ function ProfilePage({ user }) {
       /*
        * ------------------------------------------
        * 4. LOAD FOLLOWING COUNT
-       *
-       * Current user follows someone:
-       * follower_id = current user's id
        * ------------------------------------------
        */
 
@@ -239,13 +263,343 @@ function ProfilePage({ user }) {
     }
   }
 
+  function openEditProfile() {
+    const current = profile || {
+      name: getFallbackName(user),
+      username: getFallbackUsername(user),
+      bio: getFallbackBio(user),
+      avatarUrl: getFallbackAvatar(user),
+    };
+
+    setEditName(current.name || "");
+    setEditUsername(current.username || "");
+    setEditBio(current.bio || "");
+    setEditAvatarUrl(current.avatarUrl || "");
+
+    setAvatarFile(null);
+    setAvatarPreview(current.avatarUrl || "");
+
+    setEditError("");
+    setEditMessage("");
+    setEditOpen(true);
+  }
+
+  function closeEditProfile() {
+    if (savingProfile) {
+      return;
+    }
+
+    setEditOpen(false);
+    setEditError("");
+    setEditMessage("");
+
+    if (avatarPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+
+    setAvatarFile(null);
+    setAvatarPreview("");
+  }
+
+  function handleAvatarChange(event) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setEditError("");
+    setEditMessage("");
+
+    if (!file.type.startsWith("image/")) {
+      setEditError(
+        "Please choose an image file."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setEditError(
+        "Profile picture must be smaller than 5 MB."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    if (avatarPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+
+    setAvatarFile(file);
+    setAvatarPreview(previewUrl);
+  }
+
+  function removeSelectedAvatar() {
+    if (avatarPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+
+    setAvatarFile(null);
+    setAvatarPreview("");
+    setEditAvatarUrl("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  async function uploadAvatar(file) {
+    if (!file) {
+      return editAvatarUrl || "";
+    }
+
+    const extension =
+      file.name.split(".").pop()?.toLowerCase() ||
+      "jpg";
+
+    const safeExtension = [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp",
+      "gif",
+    ].includes(extension)
+      ? extension
+      : "jpg";
+
+    /*
+     * Each upload gets its own filename.
+     * This avoids stale browser/CDN cache.
+     */
+    const filePath =
+      `${user.id}/${Date.now()}-${crypto.randomUUID()}.${safeExtension}`;
+
+    const {
+      error: uploadError,
+    } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const {
+      data: publicUrlData,
+    } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(filePath);
+
+    return publicUrlData?.publicUrl || "";
+  }
+
+  async function saveProfile(event) {
+    event.preventDefault();
+
+    if (savingProfile) {
+      return;
+    }
+
+    setSavingProfile(true);
+    setEditError("");
+    setEditMessage("");
+
+    try {
+      const name = editName.trim();
+      const username = cleanUsername(editUsername);
+      const bio = editBio.trim().slice(0, 160);
+
+      if (!name) {
+        throw new Error(
+          "Please enter your name."
+        );
+      }
+
+      if (name.length > 60) {
+        throw new Error(
+          "Name can be up to 60 characters."
+        );
+      }
+
+      if (!username) {
+        throw new Error(
+          "Please choose a valid username."
+        );
+      }
+
+      if (username.length < 3) {
+        throw new Error(
+          "Username must be at least 3 characters."
+        );
+      }
+
+      /*
+       * ------------------------------------------
+       * CHECK USERNAME AVAILABILITY
+       * ------------------------------------------
+       */
+
+      const {
+        data: existingProfiles,
+        error: usernameError,
+      } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", username)
+        .neq("id", user.id)
+        .limit(1);
+
+      if (usernameError) {
+        throw usernameError;
+      }
+
+      if (
+        existingProfiles &&
+        existingProfiles.length > 0
+      ) {
+        throw new Error(
+          "That username is already taken."
+        );
+      }
+
+      /*
+       * ------------------------------------------
+       * UPLOAD NEW AVATAR
+       * ------------------------------------------
+       */
+
+      let avatarUrl = editAvatarUrl || "";
+
+      if (avatarFile) {
+        avatarUrl = await uploadAvatar(
+          avatarFile
+        );
+      }
+
+      /*
+       * ------------------------------------------
+       * UPDATE PROFILES TABLE
+       * ------------------------------------------
+       */
+
+      const {
+        error: profileUpdateError,
+      } = await supabase
+        .from("profiles")
+        .update({
+          display_name: name,
+          username,
+          bio,
+          avatar_url: avatarUrl || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (profileUpdateError) {
+        throw profileUpdateError;
+      }
+
+      /*
+       * ------------------------------------------
+       * KEEP SUPABASE AUTH METADATA IN SYNC
+       * ------------------------------------------
+       */
+
+      const {
+        error: metadataError,
+      } = await supabase.auth.updateUser({
+        data: {
+          display_name: name,
+          username,
+          bio,
+          avatar_url: avatarUrl || null,
+        },
+      });
+
+      if (metadataError) {
+        console.warn(
+          "Auth metadata update failed:",
+          metadataError
+        );
+      }
+
+      /*
+       * ------------------------------------------
+       * UPDATE UI IMMEDIATELY
+       * ------------------------------------------
+       */
+
+      setProfile({
+        name,
+        username,
+        bio:
+          bio ||
+          "Building things, learning things, and making the internet a little less boring.",
+        avatarUrl,
+      });
+
+      setEditAvatarUrl(avatarUrl);
+      setAvatarFile(null);
+
+      setEditMessage(
+        "Profile updated successfully."
+      );
+
+      setTimeout(() => {
+        setEditOpen(false);
+        setEditMessage("");
+      }, 700);
+    } catch (saveError) {
+      console.error(
+        "Profile update failed:",
+        saveError
+      );
+
+      const message =
+        saveError?.message || "";
+
+      if (
+        message
+          .toLowerCase()
+          .includes("duplicate")
+      ) {
+        setEditError(
+          "That username is already taken."
+        );
+      } else if (
+        message
+          .toLowerCase()
+          .includes("row-level security")
+      ) {
+        setEditError(
+          "You don't have permission to update this profile."
+        );
+      } else {
+        setEditError(
+          message ||
+            "Couldn't update your profile. Please try again."
+        );
+      }
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
   function formatTime(dateString) {
     if (!dateString) {
       return "";
     }
 
     const date = new Date(dateString);
-
     const now = new Date();
 
     const difference =
@@ -356,12 +710,7 @@ function ProfilePage({ user }) {
             <button
               type="button"
               className="profile-follow-button following"
-              onClick={() => {
-                /*
-                 * Edit profile will be connected
-                 * to the profiles table next.
-                 */
-              }}
+              onClick={openEditProfile}
             >
               Edit profile
             </button>
@@ -440,9 +789,7 @@ function ProfilePage({ user }) {
                   </small>
                 </div>
 
-                <p>
-                  {post.content}
-                </p>
+                <p>{post.content}</p>
 
                 <div className="profile-post-bottom">
                   <span>
@@ -502,6 +849,229 @@ function ProfilePage({ user }) {
             Posts you like will appear
             here.
           </span>
+        </div>
+      )}
+
+      {editOpen && (
+        <div
+          className="profile-edit-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (
+              event.target === event.currentTarget
+            ) {
+              closeEditProfile();
+            }
+          }}
+        >
+          <section
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-edit-title"
+          >
+            <div className="profile-edit-header">
+              <div>
+                <span className="profile-edit-kicker">
+                  YOUR PROFILE
+                </span>
+
+                <h2 id="profile-edit-title">
+                  Edit profile
+                </h2>
+
+                <p>
+                  Make your corner feel like
+                  yours.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="profile-edit-close"
+                onClick={closeEditProfile}
+                disabled={savingProfile}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              className="profile-edit-form"
+              onSubmit={saveProfile}
+            >
+              <div className="profile-edit-avatar-section">
+                <div className="profile-edit-avatar">
+                  <Avatar
+                    name={editName || "User"}
+                    size="lg"
+                    src={
+                      avatarPreview ||
+                      undefined
+                    }
+                  />
+                </div>
+
+                <div className="profile-edit-avatar-actions">
+                  <strong>
+                    Profile picture
+                  </strong>
+
+                  <span>
+                    JPG, PNG, WEBP or GIF.
+                    Max 5 MB.
+                  </span>
+
+                  <div>
+                    <button
+                      type="button"
+                      className="profile-edit-secondary"
+                      onClick={() =>
+                        fileInputRef.current?.click()
+                      }
+                      disabled={savingProfile}
+                    >
+                      {avatarPreview
+                        ? "Change photo"
+                        : "Upload photo"}
+                    </button>
+
+                    {avatarPreview && (
+                      <button
+                        type="button"
+                        className="profile-edit-remove"
+                        onClick={
+                          removeSelectedAvatar
+                        }
+                        disabled={
+                          savingProfile
+                        }
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={
+                      handleAvatarChange
+                    }
+                    hidden
+                  />
+                </div>
+              </div>
+
+              <label className="profile-edit-field">
+                <span>Name</span>
+
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(event) =>
+                    setEditName(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Your name"
+                  maxLength={60}
+                  autoComplete="name"
+                  disabled={savingProfile}
+                />
+
+                <small>
+                  {editName.length}/60
+                </small>
+              </label>
+
+              <label className="profile-edit-field">
+                <span>Username</span>
+
+                <div className="profile-edit-username">
+                  <b>@</b>
+
+                  <input
+                    type="text"
+                    value={editUsername}
+                    onChange={(event) =>
+                      setEditUsername(
+                        event.target.value
+                      )
+                    }
+                    placeholder="yourname"
+                    maxLength={24}
+                    autoComplete="username"
+                    disabled={savingProfile}
+                  />
+                </div>
+
+                <small>
+                  Letters, numbers and
+                  underscores only.
+                </small>
+              </label>
+
+              <label className="profile-edit-field">
+                <span>Bio</span>
+
+                <textarea
+                  value={editBio}
+                  onChange={(event) =>
+                    setEditBio(
+                      event.target.value.slice(
+                        0,
+                        160
+                      )
+                    )
+                  }
+                  placeholder="Tell people a little about you..."
+                  maxLength={160}
+                  rows={4}
+                  disabled={savingProfile}
+                />
+
+                <small>
+                  {editBio.length}/160
+                </small>
+              </label>
+
+              {editError && (
+                <div className="profile-edit-message error">
+                  {editError}
+                </div>
+              )}
+
+              {editMessage && (
+                <div className="profile-edit-message success">
+                  {editMessage}
+                </div>
+              )}
+
+              <div className="profile-edit-footer">
+                <button
+                  type="button"
+                  className="profile-edit-cancel"
+                  onClick={closeEditProfile}
+                  disabled={savingProfile}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="profile-edit-save"
+                  disabled={savingProfile}
+                >
+                  {savingProfile
+                    ? "Saving..."
+                    : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </section>
         </div>
       )}
     </div>
