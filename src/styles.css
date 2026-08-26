@@ -9082,4 +9082,54 @@ button:active:not(:disabled) {
     width: 100%;
   }
 }
+/* =========================================================
+   POST IMAGES
+   ========================================================= */
 
+.post-image {
+  width: 100%;
+  max-width: 690px;
+  margin: 12px 0 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.post-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 620px;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Image-only posts */
+.post-image:only-child {
+  margin-top: 11px;
+}
+
+/* Better handling for very tall images */
+@media (min-width: 761px) {
+  .post-image img {
+    max-height: 620px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 760px) {
+  .post-image {
+    width: 100%;
+    max-width: 100%;
+    margin: 10px 0 15px;
+    border-radius: 10px;
+  }
+
+  .post-image img {
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+    object-position: center;
+  }
+}
