@@ -9,6 +9,81 @@ import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext(null);
 
+function mergeProfileIntoUser(user, profile) {
+  if (!user) {
+    return null;
+  }
+
+  if (!profile) {
+    return user;
+  }
+
+  return {
+    ...user,
+    user_metadata: {
+      ...(user.user_metadata || {}),
+      display_name:
+        profile.display_name ||
+        user.user_metadata?.display_name ||
+        user.user_metadata?.name ||
+        "",
+      username:
+        profile.username ||
+        user.user_metadata?.username ||
+        "",
+      bio:
+        profile.bio ??
+        user.user_metadata?.bio ??
+        "",
+      avatar_url:
+        profile.avatar_url ||
+        user.user_metadata?.avatar_url ||
+        user.user_metadata?.picture ||
+        "",
+    },
+  };
+}
+
+async function loadProfileForUser(authUser) {
+  if (!authUser?.id) {
+    return authUser;
+  }
+
+  try {
+    const {
+      data: profile,
+      error,
+    } = await supabase
+      .from("profiles")
+      .select(
+        "id, username, display_name, bio, avatar_url"
+      )
+      .eq("id", authUser.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error(
+        "Could not load user profile:",
+        error
+      );
+
+      return authUser;
+    }
+
+    return mergeProfileIntoUser(
+      authUser,
+      profile
+    );
+  } catch (error) {
+    console.error(
+      "Unexpected profile loading error:",
+      error
+    );
+
+    return authUser;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
@@ -23,17 +98,42 @@ export function AuthProvider({ children }) {
         error,
       } = await supabase.auth.getSession();
 
-      if (!mounted) return;
-
-      if (error) {
-        console.error("Supabase session error:", error);
-        setSession(null);
-        setUser(null);
-      } else {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+      if (!mounted) {
+        return;
       }
 
+      if (error) {
+        console.error(
+          "Supabase session error:",
+          error
+        );
+
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+
+        return;
+      }
+
+      if (!currentSession?.user) {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+
+        return;
+      }
+
+      const enrichedUser =
+        await loadProfileForUser(
+          currentSession.user
+        );
+
+      if (!mounted) {
+        return;
+      }
+
+      setSession(currentSession);
+      setUser(enrichedUser);
       setLoading(false);
     }
 
@@ -42,11 +142,53 @@ export function AuthProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      (_event, currentSession) => {
-        if (!mounted) return;
+      (event, currentSession) => {
+        if (!mounted) {
+          return;
+        }
 
         setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+
+        if (!currentSession?.user) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        /*
+         * USER_UPDATED is triggered when profile metadata
+         * changes through supabase.auth.updateUser().
+         *
+         * We also reload the real profiles table so the
+         * avatar, name, username and bio stay synchronized.
+         */
+        if (
+          event === "USER_UPDATED" ||
+          event === "SIGNED_IN" ||
+          event === "INITIAL_SESSION"
+        ) {
+          setTimeout(async () => {
+            if (!mounted) {
+              return;
+            }
+
+            const enrichedUser =
+              await loadProfileForUser(
+                currentSession.user
+              );
+
+            if (!mounted) {
+              return;
+            }
+
+            setUser(enrichedUser);
+            setLoading(false);
+          }, 0);
+
+          return;
+        }
+
+        setUser(currentSession.user);
         setLoading(false);
       }
     );
@@ -56,6 +198,34 @@ export function AuthProvider({ children }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  async function refreshProfile() {
+    if (!user?.id) {
+      return;
+    }
+
+    const {
+      data: { user: freshAuthUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError) {
+      console.error(
+        "Could not refresh auth user:",
+        authError
+      );
+      return;
+    }
+
+    const enrichedUser =
+      await loadProfileForUser(
+        freshAuthUser || user
+      );
+
+    setUser(enrichedUser);
+
+    return enrichedUser;
+  }
 
   async function signUp({
     email,
@@ -124,6 +294,7 @@ export function AuthProvider({ children }) {
     signUp,
     signIn,
     signOut,
+    refreshProfile,
   };
 
   return (

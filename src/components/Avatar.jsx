@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 export default function Avatar({
   name = "User",
   size = "md",
@@ -6,15 +8,25 @@ export default function Avatar({
   const initial =
     name?.trim()?.slice(0, 1)?.toUpperCase() || "U";
 
-  if (src) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [src]);
+
+  const hasImage = Boolean(src) && !imageFailed;
+
+  if (hasImage) {
     return (
       <span
         className={`avatar avatar-${size} avatar-image`}
+        aria-label={name}
       >
         <img
           src={src}
           alt={name}
           loading="lazy"
+          onError={() => setImageFailed(true)}
         />
       </span>
     );
