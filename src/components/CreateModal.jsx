@@ -80,7 +80,7 @@ export default function CreateModal({ onClose }) {
 
       if (
         (event.metaKey || event.ctrlKey) &&
-        event.key === "Enter"
+        event.key.toLowerCase() === "enter"
       ) {
         event.preventDefault();
 
@@ -93,10 +93,7 @@ export default function CreateModal({ onClose }) {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [posting, text, imageFile]);
 
@@ -127,9 +124,7 @@ export default function CreateModal({ onClose }) {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setError(
-        "Image must be smaller than 5 MB."
-      );
+      setError("Image must be smaller than 5 MB.");
 
       event.target.value = "";
       return;
@@ -161,26 +156,21 @@ export default function CreateModal({ onClose }) {
 
   async function uploadImage() {
     if (!imageFile || !user?.id) {
-      return null;
+      return "";
     }
 
     const extension = getFileExtension(imageFile);
 
-    const filePath =
-      `${user.id}/${crypto.randomUUID()}.${extension}`;
+    const filePath = `${user.id}/${crypto.randomUUID()}.${extension}`;
 
     const { error: uploadError } =
       await supabase.storage
         .from("posts")
-        .upload(
-          filePath,
-          imageFile,
-          {
-            cacheControl: "3600",
-            contentType: imageFile.type,
-            upsert: false,
-          }
-        );
+        .upload(filePath, imageFile, {
+          cacheControl: "3600",
+          contentType: imageFile.type,
+          upsert: false,
+        });
 
     if (uploadError) {
       throw uploadError;
@@ -198,77 +188,106 @@ export default function CreateModal({ onClose }) {
   async function publishPost() {
     const cleanText = text.trim();
 
-    if (
-      (!cleanText && !imageFile) ||
-      posting
-    ) {
+    if ((!cleanText && !imageFile) || posting) {
       return;
     }
 
     if (!user?.id) {
-      setError(
-        "You need to be logged in to post."
-      );
+      setError("You need to be logged in to post.");
       return;
     }
 
     setPosting(true);
     setError("");
 
-    try {
-      const imageUrl = await uploadImage();
+    let uploadedImageUrl = "";
 
-      const postData = {
+    try {
+      /*
+       * STEP 1
+       * Upload image to Supabase Storage.
+       */
+      if (imageFile) {
+        uploadedImageUrl = await uploadImage();
+      }
+
+      /*
+       * STEP 2
+       * Create the actual database post.
+       *
+       * This is the important part that was missing.
+       */
+      const postPayload = {
         author_id: user.id,
         author_name: displayName,
         author_username: username,
         author_avatar: avatarUrl || null,
         content: cleanText,
-        image_url: imageUrl || null,
+        image_url: uploadedImageUrl || null,
         likes: 0,
         replies: 0,
         reposts: 0,
       };
 
       const {
-        data,
+        data: createdPost,
         error: insertError,
       } = await supabase
         .from("posts")
-        .insert(postData)
+        .insert(postPayload)
         .select()
         .single();
 
       if (insertError) {
+        /*
+         * If the database insert fails after the image
+         * uploaded, try to remove the orphaned image.
+         */
+        if (uploadedImageUrl) {
+          try {
+            const url = new URL(uploadedImageUrl);
+            const marker = "/storage/v1/object/public/posts/";
+
+            const markerIndex =
+              url.pathname.indexOf(marker);
+
+            if (markerIndex !== -1) {
+              const storagePath = decodeURIComponent(
+                url.pathname.slice(
+                  markerIndex + marker.length
+                )
+              );
+
+              await supabase.storage
+                .from("posts")
+                .remove([storagePath]);
+            }
+          } catch (cleanupError) {
+            console.error(
+              "Image cleanup failed:",
+              cleanupError
+            );
+          }
+        }
+
         throw insertError;
       }
 
-      const post = {
-        id: data.id,
-        name: data.author_name || displayName,
-        handle:
-          data.author_username || username,
-        avatarUrl:
-          data.author_avatar || avatarUrl || "",
-        text: data.content || "",
-        imageUrl: data.image_url || "",
-        time: "now",
-        createdAt: data.created_at,
-        likes: Number(data.likes || 0),
-        replies: Number(data.replies || 0),
-        reposts: Number(data.reposts || 0),
-        authorId: data.author_id,
-      };
-
+      /*
+       * STEP 3
+       * Tell the currently mounted feed that a new post
+       * was created.
+       */
       window.dispatchEvent(
-        new CustomEvent(
-          "social:post-created",
-          {
-            detail: post,
-          }
-        )
+        new CustomEvent("social:post-created", {
+          detail: createdPost,
+        })
       );
 
+      /*
+       * STEP 4
+       * Close modal after successful DB insert.
+       */
       window.setTimeout(() => {
         onClose();
       }, 120);
@@ -296,12 +315,10 @@ export default function CreateModal({ onClose }) {
     }
   }
 
-  const remaining =
-    MAX_LENGTH - text.length;
+  const remaining = MAX_LENGTH - text.length;
 
   const hasContent =
-    Boolean(text.trim()) ||
-    Boolean(imageFile);
+    Boolean(text.trim()) || Boolean(imageFile);
 
   return (
     <div
@@ -340,19 +357,12 @@ export default function CreateModal({ onClose }) {
         <div className="create-author">
           <Avatar
             name={displayName}
-            src={
-              avatarUrl || undefined
-            }
+            src={avatarUrl || undefined}
           />
 
           <div>
-            <strong>
-              {displayName}
-            </strong>
-
-            <small>
-              @{username}
-            </small>
+            <strong>{displayName}</strong>
+            <small>@{username}</small>
           </div>
         </div>
 
@@ -447,10 +457,7 @@ export default function CreateModal({ onClose }) {
             <button
               type="button"
               className="create-post-button"
-              disabled={
-                !hasContent ||
-                posting
-              }
+              disabled={!hasContent || posting}
               onClick={publishPost}
             >
               {posting
