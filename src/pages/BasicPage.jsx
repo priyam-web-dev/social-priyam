@@ -34,9 +34,16 @@ function getFallbackAvatar(user) {
   );
 }
 
-function ProfileSquare({ name = "User", src = "", size = 92, className = "", responsive = false }) {
+function ProfileSquare({
+  name = "User",
+  src = "",
+  size = 92,
+  className = "",
+  responsive = false,
+}) {
   const initial =
     (name || "U").trim().charAt(0).toUpperCase() || "U";
+
   const dimension = responsive ? "100%" : `${size}px`;
 
   return (
@@ -280,7 +287,8 @@ function ProfilePage({ user }) {
             created_at,
             likes_count,
             replies_count,
-            reposts_count
+            reposts_count,
+            image_url
           `
         )
         .eq("author_id", user.id)
@@ -425,6 +433,7 @@ function ProfilePage({ user }) {
      * Each upload gets its own filename.
      * This avoids stale browser/CDN cache.
      */
+
     const filePath =
       `${user.id}/${Date.now()}-${crypto.randomUUID()}.${safeExtension}`;
 
@@ -835,7 +844,44 @@ function ProfilePage({ user }) {
                   </small>
                 </div>
 
-                <p>{post.content}</p>
+                {post.image_url && (
+                  <div
+                    className="profile-post-image"
+                    style={{
+                      width: "100%",
+                      marginTop: "14px",
+                      marginBottom: "16px",
+                      overflow: "hidden",
+                      borderRadius: "10px",
+                      border:
+                        "1px solid var(--border-color, rgba(255,255,255,0.12))",
+                      background:
+                        "var(--surface, #151515)",
+                    }}
+                  >
+                    <img
+                      src={post.image_url}
+                      alt="Post"
+                      loading="lazy"
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        height: "auto",
+                        maxHeight: "520px",
+                        objectFit: "cover",
+                        objectPosition: "center",
+                      }}
+                      onError={(event) => {
+                        event.currentTarget.style.display =
+                          "none";
+                      }}
+                    />
+                  </div>
+                )}
+
+                {post.content && (
+                  <p>{post.content}</p>
+                )}
 
                 <div className="profile-post-bottom">
                   <span>
