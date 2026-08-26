@@ -108,7 +108,7 @@ function AppShell({ user, onLogout }) {
           aria-label="Go home"
         >
           <b>S</b>
-          <span>social</span>
+          <span>QYVRA</span>
         </button>
 
         <div className="topbar-actions">
