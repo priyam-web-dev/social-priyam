@@ -15808,3 +15808,1017 @@ select {
     transition-duration: .01ms !important;
   }
 }
+
+/* =========================================================
+   QYVRA / PRODUCT REDESIGN 2026
+   A real composition pass, not a color reskin.
+========================================================= */
+
+:root {
+  --bg: #f6f7f3 !important;
+  --surface: #ffffff !important;
+  --surface-2: #eceee9 !important;
+  --text: #111318 !important;
+  --muted: #767b85 !important;
+  --line: #d9dce1 !important;
+  --line-strong: #b7bcc5 !important;
+  --accent: #6857ff !important;
+  --accent-dark: #5143e5 !important;
+  --accent-soft: #eeecff !important;
+  --green: #20a56a !important;
+  --ink: #111318 !important;
+  --panel: #ffffff !important;
+  --panel-soft: #f3f4f1 !important;
+  --display-font: "SNEAKER", "Space Grotesk", system-ui, sans-serif !important;
+  --body-font: "SNEAKER", "Plus Jakarta Sans", system-ui, sans-serif !important;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b0c10 !important;
+  --surface: #12141a !important;
+  --surface-2: #1b1e26 !important;
+  --text: #f6f6f2 !important;
+  --muted: #949aa5 !important;
+  --line: #2b2f38 !important;
+  --line-strong: #404652 !important;
+  --accent: #8678ff !important;
+  --accent-dark: #6f61ef !important;
+  --accent-soft: #26233c !important;
+  --green: #45d28f !important;
+  --ink: #05060a !important;
+  --panel: #12141a !important;
+  --panel-soft: #181b22 !important;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at 8% -5%, rgba(104,87,255,.11), transparent 28rem),
+    radial-gradient(circle at 93% 28%, rgba(255,111,97,.06), transparent 24rem),
+    var(--bg) !important;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 8% -5%, rgba(134,120,255,.13), transparent 26rem),
+    radial-gradient(circle at 95% 35%, rgba(255,99,88,.05), transparent 25rem),
+    var(--bg) !important;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: var(--body-font) !important;
+}
+
+/* ---------- header ---------- */
+.qyvra-new-shell {
+  min-height: 100vh;
+  background: transparent !important;
+}
+
+.qyvra-minimal-header {
+  position: sticky !important;
+  top: 0;
+  z-index: 120;
+  min-height: 72px !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(180px, 1fr) auto !important;
+  align-items: center;
+  gap: 24px;
+  padding: 10px clamp(16px, 4vw, 56px) !important;
+  border-bottom: 1px solid var(--line) !important;
+  background: color-mix(in srgb, var(--bg) 88%, transparent) !important;
+  backdrop-filter: blur(22px) saturate(140%);
+}
+
+.header-left-cluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.qyvra-menu-trigger {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.qyvra-menu-trigger:hover {
+  transform: translateY(-1px);
+  border-color: var(--text) !important;
+}
+
+.qyvra-menu-mark {
+  width: 16px;
+  display: grid;
+  gap: 3px;
+}
+
+.qyvra-menu-mark span {
+  display: block;
+  height: 2px;
+  border-radius: 99px;
+  background: currentColor;
+}
+
+.qyvra-brand {
+  gap: 10px !important;
+  color: var(--text) !important;
+  letter-spacing: -.055em !important;
+}
+
+.qyvra-brand span:last-child {
+  font-size: 20px !important;
+}
+
+.qyvra-mark {
+  width: 39px !important;
+  height: 39px !important;
+  border-radius: 13px !important;
+  background: var(--accent) !important;
+  box-shadow: 4px 4px 0 var(--text) !important;
+}
+
+.header-context {
+  justify-self: center;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--muted);
+}
+
+.header-context-kicker {
+  font-size: 8px;
+  letter-spacing: .17em;
+  font-weight: 900;
+}
+
+.header-context strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.qyvra-header-actions {
+  display: flex !important;
+  align-items: center;
+  gap: 8px !important;
+}
+
+.header-search {
+  width: clamp(190px, 22vw, 300px) !important;
+  min-height: 42px !important;
+  border-radius: 13px !important;
+  background: var(--surface) !important;
+  border-color: var(--line) !important;
+}
+
+.header-search:hover,
+.header-search:focus-visible {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent) !important;
+}
+
+.header-create-compact {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid var(--text);
+  border-radius: 13px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 900;
+  transition: transform .18s ease, background .18s ease, color .18s ease;
+}
+
+.header-create-compact:hover {
+  transform: translateY(-2px);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.header-create-compact span:first-child {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.header-profile {
+  min-height: 42px !important;
+  padding: 4px 10px 4px 5px !important;
+  border-radius: 13px !important;
+  background: var(--surface) !important;
+  border-color: var(--line) !important;
+}
+
+.header-profile:hover {
+  border-color: var(--text) !important;
+}
+
+/* ---------- main composition ---------- */
+.qyvra-new-frame {
+  width: min(1420px, calc(100% - 44px));
+  margin: 0 auto;
+  padding: 28px 0 96px;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 780px) 300px;
+  gap: clamp(22px, 3vw, 46px);
+  align-items: start;
+}
+
+.qyvra-side-identity {
+  position: sticky;
+  top: 102px;
+  align-self: start;
+  min-height: calc(100vh - 132px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  color: var(--muted);
+}
+
+.side-rule {
+  width: 1px;
+  flex: 1;
+  min-height: 100px;
+  margin-bottom: 18px;
+  background: linear-gradient(to bottom, transparent, var(--line-strong), transparent);
+}
+
+.qyvra-side-identity > span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.qyvra-side-identity small {
+  margin-top: 10px;
+  writing-mode: vertical-rl;
+  font-size: 7px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.qyvra-new-main {
+  min-width: 0;
+  animation: qyvra-fade-up .45s ease both;
+}
+
+.qyvra-content-main,
+.qyvra-content-grid,
+.qyvra-main {
+  min-width: 0;
+}
+
+/* Remove the old duplicated global page title. Individual pages own their own title. */
+.qyvra-new-shell .page-heading {
+  display: none !important;
+}
+
+.qyvra-new-shell .qyvra-page {
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.qyvra-new-shell .qyvra-main {
+  width: auto !important;
+}
+
+/* Home becomes immediate and content-first. */
+.qyvra-new-shell .new-page-intro,
+.qyvra-new-shell .page-intro {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.qyvra-new-shell .page-intro h1 {
+  font-size: clamp(38px, 5vw, 66px) !important;
+  line-height: .94 !important;
+  letter-spacing: -.075em !important;
+}
+
+.qyvra-new-shell .page-intro p {
+  max-width: 52ch;
+  color: var(--muted) !important;
+}
+
+/* ---------- home controls ---------- */
+.qyvra-new-shell .feed-tabs,
+.qyvra-new-shell .feed-switcher,
+.qyvra-new-shell .feed-controls {
+  border-color: var(--line) !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+.qyvra-new-shell .feed-tabs button.active,
+.qyvra-new-shell .feed-switcher button.active,
+.qyvra-new-shell .feed-controls button.active {
+  background: var(--text) !important;
+  color: var(--bg) !important;
+  box-shadow: none !important;
+}
+
+.qyvra-new-shell .composer {
+  position: relative;
+  margin: 24px 0 14px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 20px !important;
+  background: var(--surface) !important;
+  box-shadow: 8px 8px 0 color-mix(in srgb, var(--accent) 17%, transparent) !important;
+  overflow: hidden;
+}
+
+.qyvra-new-shell .composer::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(var(--accent), #ff7a62);
+}
+
+.qyvra-new-shell .composer:hover {
+  border-color: var(--line-strong) !important;
+}
+
+/* ---------- social post ---------- */
+.qyvra-new-shell .post-card {
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) !important;
+  gap: 13px !important;
+  padding: 23px 0 28px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.qyvra-new-shell .post-card + .post-card {
+  padding-top: 27px !important;
+}
+
+.qyvra-new-shell .post-body {
+  min-width: 0;
+}
+
+.qyvra-new-shell .post-meta {
+  gap: 7px !important;
+  min-height: 38px;
+}
+
+.qyvra-new-shell .post-meta strong {
+  font-size: 12px !important;
+}
+
+.qyvra-new-shell .post-meta > span {
+  font-size: 10px !important;
+}
+
+.qyvra-new-shell .post-more {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+}
+
+.qyvra-new-shell .post-text {
+  max-width: 62ch !important;
+  margin: 12px 0 16px !important;
+  font-size: 15px !important;
+  line-height: 1.68 !important;
+}
+
+.qyvra-new-shell .post-image {
+  margin-top: 12px !important;
+  border: 0 !important;
+  border-radius: 17px !important;
+  background: var(--surface-2) !important;
+  box-shadow: 0 0 0 1px var(--line);
+  overflow: hidden;
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.qyvra-new-shell .post-image:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px var(--line-strong), 0 16px 40px rgba(20,24,32,.10);
+}
+
+.qyvra-new-shell .post-image img {
+  display: block;
+  width: 100% !important;
+  max-height: 720px !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
+.qyvra-new-shell .post-actions {
+  display: flex !important;
+  align-items: center;
+  gap: 4px !important;
+  margin-top: 12px !important;
+}
+
+.qyvra-new-shell .post-action {
+  min-height: 34px !important;
+  padding: 0 9px !important;
+  border-radius: 10px !important;
+  color: var(--muted) !important;
+  background: transparent !important;
+  transition: color .16s ease, background .16s ease, transform .16s ease !important;
+}
+
+.qyvra-new-shell .post-action:hover {
+  color: var(--text) !important;
+  background: var(--panel-soft) !important;
+  transform: translateY(-1px);
+}
+
+.qyvra-new-shell .post-action.active,
+.qyvra-new-shell .post-action.shared {
+  color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+}
+
+/* ---------- pulse rail ---------- */
+.qyvra-new-shell .pulse-rail {
+  position: sticky !important;
+  top: 101px !important;
+  display: grid !important;
+  gap: 0 !important;
+  padding-top: 2px;
+}
+
+.qyvra-new-shell .pulse-block {
+  padding: 0 0 20px !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+  margin-bottom: 20px !important;
+}
+
+.qyvra-new-shell .pulse-block:first-child {
+  border-top: 3px solid var(--accent) !important;
+  padding-top: 10px !important;
+}
+
+.qyvra-new-shell .pulse-block-head {
+  color: var(--muted) !important;
+  font-size: 8px !important;
+}
+
+.qyvra-new-shell .pulse-primary h2 {
+  max-width: 10ch !important;
+  margin: 14px 0 9px !important;
+  font-size: 32px !important;
+  line-height: .94 !important;
+  letter-spacing: -.06em !important;
+}
+
+.qyvra-new-shell .pulse-primary p,
+.qyvra-new-shell .pulse-note p {
+  font-size: 10px !important;
+}
+
+.qyvra-new-shell .pulse-topic {
+  padding: 13px 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+
+.qyvra-new-shell .pulse-topic:last-child {
+  border-bottom: 0 !important;
+}
+
+.qyvra-new-shell .pulse-topic strong {
+  font-size: 13px !important;
+  transition: color .16s ease;
+}
+
+.qyvra-new-shell .pulse-topic:hover strong {
+  color: var(--accent) !important;
+}
+
+.qyvra-new-shell .pulse-note {
+  border-bottom: 0 !important;
+  padding: 3px 0 6px !important;
+}
+
+.qyvra-new-shell .pulse-note::before {
+  content: "";
+  display: block;
+  width: 58px;
+  height: 3px;
+  margin: 0 0 10px;
+  background: var(--text);
+}
+
+.qyvra-new-shell .pulse-footer {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+/* ---------- profile surfaces ---------- */
+.qyvra-new-shell .profile-identity {
+  border-bottom-color: var(--line) !important;
+  background: transparent !important;
+}
+
+.qyvra-new-shell .profile-identity h1,
+.qyvra-new-shell .profile-name {
+  font-size: clamp(42px, 5.2vw, 72px) !important;
+  letter-spacing: -.08em !important;
+  line-height: .9 !important;
+}
+
+.qyvra-new-shell .profile-tabs {
+  border-bottom-color: var(--line) !important;
+}
+
+.qyvra-new-shell .profile-tabs button.active {
+  color: var(--accent) !important;
+}
+
+.qyvra-new-shell .profile-tabs button.active::after {
+  background: var(--accent) !important;
+}
+
+.qyvra-new-shell .profile-posts {
+  gap: 18px !important;
+}
+
+.qyvra-new-shell .profile-post {
+  min-height: 320px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 18px !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+  transition: transform .2s ease, border-color .2s ease;
+}
+
+.qyvra-new-shell .profile-post:hover {
+  transform: translateY(-3px);
+  border-color: var(--line-strong) !important;
+}
+
+/* Kill the old absolute-positioning trap in profile cards. */
+.qyvra-new-shell .profile-post p,
+.qyvra-new-shell .profile-post-bottom {
+  position: static !important;
+}
+
+.qyvra-new-shell .profile-post-content {
+  position: static !important;
+}
+
+.qyvra-new-shell .profile-post-image-wrap {
+  overflow: hidden;
+}
+
+.qyvra-new-shell .profile-post-image {
+  width: 100% !important;
+  height: 250px !important;
+  object-fit: cover !important;
+  transition: transform .35s ease;
+}
+
+.qyvra-new-shell .profile-post:hover .profile-post-image {
+  transform: scale(1.025);
+}
+
+.qyvra-new-shell .profile-post p {
+  margin: 14px 16px 0 !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.qyvra-new-shell .profile-post-bottom {
+  display: flex !important;
+  gap: 15px !important;
+  margin: 15px 16px 16px !important;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+/* ---------- messages ---------- */
+.qyvra-new-shell .messages-layout {
+  min-height: 650px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 22px !important;
+  background: var(--surface) !important;
+  overflow: hidden;
+  box-shadow: 10px 10px 0 color-mix(in srgb, var(--accent) 10%, transparent) !important;
+}
+
+.qyvra-new-shell .messages-sidebar {
+  border-right-color: var(--line) !important;
+  background: var(--surface) !important;
+}
+
+.qyvra-new-shell .conversation-panel {
+  background: var(--surface) !important;
+}
+
+.qyvra-new-shell .new-message-button {
+  background: var(--text) !important;
+  color: var(--bg) !important;
+  border-color: var(--text) !important;
+}
+
+/* ---------- explore ---------- */
+.qyvra-new-shell .topic-card,
+.qyvra-new-shell .explore-card,
+.qyvra-new-shell .trend-card {
+  transition: transform .18s ease, border-color .18s ease;
+}
+
+.qyvra-new-shell .topic-card:hover,
+.qyvra-new-shell .explore-card:hover,
+.qyvra-new-shell .trend-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent) !important;
+}
+
+/* ---------- drawer ---------- */
+.qyvra-drawer-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: stretch;
+  background: rgba(9,10,14,.34);
+  backdrop-filter: blur(5px);
+  animation: qyvra-fade .18s ease both;
+}
+
+.qyvra-drawer {
+  width: min(430px, 92vw);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 22px 24px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  box-shadow: 22px 0 70px rgba(0,0,0,.16);
+  animation: qyvra-drawer-in .28s cubic-bezier(.16,1,.3,1) both;
+}
+
+.qyvra-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.qyvra-drawer-close {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font-size: 22px;
+}
+
+.qyvra-drawer-intro {
+  padding: 46px 0 32px;
+}
+
+.qyvra-drawer-intro h2 {
+  max-width: 10ch;
+  margin: 11px 0 0;
+  font-family: var(--display-font);
+  font-size: 34px;
+  line-height: .95;
+  letter-spacing: -.06em;
+}
+
+.qyvra-drawer-nav {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.qyvra-drawer-nav a {
+  display: grid;
+  grid-template-columns: 34px 24px minmax(0,1fr) auto;
+  align-items: center;
+  min-height: 60px;
+  gap: 9px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  text-decoration: none;
+  transition: padding .18s ease, color .18s ease, background .18s ease;
+}
+
+.qyvra-drawer-nav a:hover,
+.qyvra-drawer-nav a.active {
+  padding-left: 8px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.drawer-nav-index {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.drawer-nav-icon {
+  font-size: 14px;
+}
+
+.drawer-nav-arrow {
+  color: var(--muted);
+}
+
+.drawer-create {
+  margin-top: 22px;
+  padding: 14px 15px;
+  display: grid;
+  grid-template-columns: 32px minmax(0,1fr) 20px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--text);
+  border-radius: 15px;
+  background: var(--text);
+  color: var(--bg);
+  text-align: left;
+  transition: transform .18s ease, background .18s ease;
+}
+
+.drawer-create:hover {
+  transform: translateY(-2px);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.drawer-create > span:first-child {
+  font-size: 25px;
+  text-align: center;
+}
+
+.drawer-create div {
+  display: grid;
+  gap: 2px;
+}
+
+.drawer-create strong {
+  font-size: 11px;
+}
+
+.drawer-create small {
+  opacity: .64;
+  font-size: 8px;
+}
+
+.drawer-account {
+  margin-top: auto;
+  padding-top: 20px;
+  display: grid;
+  grid-template-columns: 38px minmax(0,1fr) 36px;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.drawer-account > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.drawer-account strong {
+  font-size: 11px;
+}
+
+.drawer-account span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.drawer-account > button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+}
+
+/* ---------- command palette ---------- */
+.qyvra-new-shell .command-palette {
+  width: min(640px, calc(100vw - 24px)) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 22px !important;
+  background: var(--surface) !important;
+  box-shadow: 0 28px 80px rgba(0,0,0,.22) !important;
+}
+
+.qyvra-new-shell .command-item.active {
+  background: var(--accent-soft) !important;
+  color: var(--text) !important;
+}
+
+/* ---------- mobile ---------- */
+@media (max-width: 1100px) {
+  .qyvra-new-frame {
+    width: min(100% - 32px, 840px);
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .qyvra-side-identity,
+  .qyvra-new-shell .pulse-rail {
+    display: none !important;
+  }
+
+  .header-context {
+    display: none;
+  }
+
+  .qyvra-minimal-header {
+    grid-template-columns: auto 1fr auto !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .qyvra-minimal-header {
+    min-height: 64px !important;
+    padding: 8px 12px !important;
+    gap: 8px !important;
+  }
+
+  .qyvra-menu-trigger {
+    width: 36px;
+    height: 36px;
+  }
+
+  .qyvra-mark {
+    width: 35px !important;
+    height: 35px !important;
+  }
+
+  .qyvra-brand span:last-child {
+    font-size: 18px !important;
+  }
+
+  .qyvra-header-actions {
+    gap: 5px !important;
+  }
+
+  .header-search {
+    width: 38px !important;
+    padding: 0 !important;
+    grid-template-columns: 1fr !important;
+    justify-items: center;
+  }
+
+  .header-search-text,
+  .header-search kbd,
+  .header-profile > span:last-child,
+  .header-create-compact > span:last-child {
+    display: none !important;
+  }
+
+  .header-create-compact {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .header-profile {
+    width: 38px;
+    padding: 4px !important;
+    justify-content: center;
+  }
+
+  .qyvra-new-frame {
+    width: calc(100% - 20px) !important;
+    padding: 16px 0 94px !important;
+  }
+
+  .qyvra-new-shell .page-intro h1 {
+    font-size: 42px !important;
+  }
+
+  .qyvra-new-shell .composer {
+    border-radius: 16px !important;
+    margin-top: 18px !important;
+    box-shadow: 5px 5px 0 color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  }
+
+  .qyvra-new-shell .post-card {
+    grid-template-columns: 36px minmax(0, 1fr) !important;
+    gap: 9px !important;
+    padding: 19px 0 23px !important;
+  }
+
+  .qyvra-new-shell .post-text {
+    font-size: 14px !important;
+  }
+
+  .qyvra-new-shell .post-image {
+    border-radius: 13px !important;
+  }
+
+  .qyvra-new-shell .post-actions {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .qyvra-new-shell .post-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .qyvra-new-shell .profile-posts {
+    grid-template-columns: 1fr !important;
+  }
+
+  .qyvra-new-shell .profile-post-image {
+    height: 300px !important;
+  }
+
+  .qyvra-new-shell .messages-layout {
+    min-height: calc(100vh - 145px) !important;
+    border-radius: 16px !important;
+  }
+
+  .qyvra-mobile-nav {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    z-index: 200 !important;
+    border-radius: 18px !important;
+    background: color-mix(in srgb, var(--surface) 92%, transparent) !important;
+    border: 1px solid var(--line) !important;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 16px 34px rgba(0,0,0,.14) !important;
+  }
+
+  .qyvra-mobile-create {
+    right: 22px !important;
+    bottom: 80px !important;
+    width: 48px !important;
+    height: 48px !important;
+    background: var(--text) !important;
+    box-shadow: 4px 4px 0 var(--accent) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .qyvra-drawer {
+    width: 100vw;
+    border-right: 0;
+  }
+
+  .qyvra-drawer-intro {
+    padding-top: 38px;
+  }
+
+  .qyvra-drawer-intro h2 {
+    font-size: 31px;
+  }
+}
+
+@keyframes qyvra-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes qyvra-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes qyvra-drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qyvra-new-main,
+  .qyvra-drawer,
+  .qyvra-drawer-layer {
+    animation: none !important;
+  }
+
+  .qyvra-new-shell * {
+    transition-duration: .01ms !important;
+  }
+}

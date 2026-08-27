@@ -318,29 +318,107 @@ function PulseRail() {
   );
 }
 
+function QyvraDrawer({ open, onClose, onCreate, user, onLogout }) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="qyvra-drawer-layer"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <aside className="qyvra-drawer" aria-label="QYVRA navigation">
+        <div className="qyvra-drawer-head">
+          <button
+            type="button"
+            className="qyvra-brand qyvra-drawer-brand"
+            onClick={() => onClose()}
+            aria-label="Close navigation"
+          >
+            <QyvraMark />
+            <span>QYVRA</span>
+          </button>
+
+          <button
+            type="button"
+            className="qyvra-drawer-close"
+            onClick={onClose}
+            aria-label="Close navigation"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="qyvra-drawer-intro">
+          <span className="eyebrow">YOUR SPACE</span>
+          <h2>Choose where the conversation goes.</h2>
+        </div>
+
+        <nav className="qyvra-drawer-nav" aria-label="Main navigation">
+          {primaryNav.map((item, index) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === "/"}
+              onClick={onClose}
+              className={({ isActive }) =>
+                isActive ? "active" : ""
+              }
+            >
+              <span className="drawer-nav-index">0{index + 1}</span>
+              <span className="drawer-nav-icon" aria-hidden="true">
+                {item.icon}
+              </span>
+              <strong>{item.label}</strong>
+              <span className="drawer-nav-arrow">↗</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <button type="button" className="drawer-create" onClick={onCreate}>
+          <span>＋</span>
+          <div>
+            <strong>Create something.</strong>
+            <small>Start a post · Ctrl N</small>
+          </div>
+          <span>↗</span>
+        </button>
+
+        <div className="drawer-account">
+          <Avatar name={getDisplayName(user)} size="sm" />
+          <div>
+            <strong>{getDisplayName(user)}</strong>
+            <span>@{getUsername(user)}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            aria-label="Log out"
+            title="Log out"
+          >
+            ↗
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 function AppShell({ user, onLogout }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [createOpen, setCreateOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [showTopButton, setShowTopButton] = useState(false);
   const displayName = getDisplayName(user);
-
-  const pageMeta = {
-    "/": ["HOME", "Your space"],
-    "/explore": ["EXPLORE", "Find your corner"],
-    "/messages": ["MESSAGES", "Stay in touch"],
-    "/notifications": ["ACTIVITY", "See what changed"],
-    "/profile": ["PROFILE", "Make it yours"],
-    "/saved": ["SAVED", "Worth returning to"],
-  };
-
-  const [eyebrow, title] =
-    pageMeta[location.pathname] || ["QYVRA", "Stay awhile."];
 
   useEffect(() => {
     setCreateOpen(false);
     setCommandOpen(false);
+    setDrawerOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [location.pathname]);
 
@@ -359,15 +437,18 @@ function AppShell({ user, onLogout }) {
       const modifier = event.metaKey || event.ctrlKey;
       if (modifier && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        setDrawerOpen(false);
         setCommandOpen(true);
       }
       if (modifier && event.key.toLowerCase() === "n") {
         event.preventDefault();
+        setDrawerOpen(false);
         setCreateOpen(true);
       }
       if (event.key === "Escape") {
         setCommandOpen(false);
         setCreateOpen(false);
+        setDrawerOpen(false);
       }
     }
 
@@ -377,106 +458,115 @@ function AppShell({ user, onLogout }) {
 
   function openCreate() {
     setCommandOpen(false);
+    setDrawerOpen(false);
     setCreateOpen(true);
   }
 
-  return (
-    <div className="app-shell qyvra-product">
-      <header className="qyvra-header">
-        <button
-          type="button"
-          className="qyvra-brand"
-          onClick={() => navigate("/")}
-          aria-label="QYVRA home"
-        >
-          <QyvraMark />
-          <span>QYVRA</span>
-        </button>
+  const currentItem =
+    primaryNav.find((item) =>
+      item.path === "/"
+        ? location.pathname === "/"
+        : location.pathname.startsWith(item.path)
+    ) || primaryNav[0];
 
-        <nav className="qyvra-header-nav" aria-label="Primary navigation">
-          {primaryNav.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === "/"}
-              className={({ isActive }) =>
-                isActive ? "active" : ""
-              }
-            >
-              <span aria-hidden="true">{item.icon}</span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
+  return (
+    <div className="app-shell qyvra-new-shell">
+      <header className="qyvra-minimal-header">
+        <div className="header-left-cluster">
+          <button
+            type="button"
+            className="qyvra-menu-trigger"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open navigation"
+            aria-expanded={drawerOpen}
+          >
+            <span className="qyvra-menu-mark">
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="qyvra-brand"
+            onClick={() => navigate("/")}
+            aria-label="QYVRA home"
+          >
+            <QyvraMark />
+            <span>QYVRA</span>
+          </button>
+        </div>
+
+        <div className="header-context">
+          <span className="header-context-kicker">NOW VIEWING</span>
+          <strong>{currentItem.label}</strong>
+        </div>
 
         <div className="qyvra-header-actions">
           <button
             type="button"
             className="header-search"
             onClick={() => setCommandOpen(true)}
+            aria-label="Open QYVRA search"
           >
             <span>⌕</span>
             <span className="header-search-text">Search QYVRA</span>
             <kbd>⌘ K</kbd>
           </button>
+
+          <button
+            type="button"
+            className="header-create-compact"
+            onClick={openCreate}
+          >
+            <span>＋</span>
+            <span>Create</span>
+          </button>
+
           <ThemeButton />
+
           <button
             type="button"
             className="header-profile"
             onClick={() => navigate("/profile")}
           >
-            <Avatar
-              name={displayName}
-              size="sm"
-            />
+            <Avatar name={displayName} size="sm" />
             <span>{displayName}</span>
           </button>
         </div>
       </header>
 
-      <div className="qyvra-page">
-        <main className="qyvra-main">
-          <div className="page-heading">
-            <div>
-              <span className="eyebrow">{eyebrow}</span>
-              <h1>{title}</h1>
-            </div>
-            <button
-              type="button"
-              className="page-create-inline"
-              onClick={openCreate}
-            >
-              <span>+</span>
-              Create
-            </button>
-          </div>
+      <div className="qyvra-new-frame">
+        <aside className="qyvra-side-identity">
+          <div className="side-rule" />
+          <span>QYVRA</span>
+          <small>social / conversation</small>
+        </aside>
 
-          <div className="qyvra-content-grid">
-            <section className="qyvra-content-main">
-              <Routes>
-                <Route path="/" element={<Home onCreate={openCreate} />} />
-                <Route path="/explore" element={<Explore />} />
-                <Route path="/messages" element={<Messages />} />
-                <Route
-                  path="/notifications"
-                  element={<BasicPage type="notifications" user={user} />}
-                />
-                <Route
-                  path="/profile"
-                  element={<BasicPage type="profile" user={user} />}
-                />
-                <Route path="/saved" element={<SavedPage />} />
-                <Route path="/create" element={<Navigate to="/" replace />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </section>
-
-            <PulseRail />
-          </div>
+        <main className="qyvra-new-main">
+          <Routes>
+            <Route path="/" element={<Home onCreate={openCreate} />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route
+              path="/notifications"
+              element={<BasicPage type="notifications" user={user} />}
+            />
+            <Route
+              path="/profile"
+              element={<BasicPage type="profile" user={user} />}
+            />
+            <Route path="/saved" element={<SavedPage />} />
+            <Route path="/create" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
+
+        <PulseRail />
       </div>
 
-      <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+      <nav className="mobile-bottom-nav qyvra-mobile-nav" aria-label="Mobile navigation">
         {navigation.slice(0, 4).map((item) => (
           <NavLink
             key={item.path}
@@ -487,15 +577,15 @@ function AppShell({ user, onLogout }) {
             <small>{item.label === "Notifications" ? "Activity" : item.label}</small>
           </NavLink>
         ))}
-        <NavLink to="/profile">
-          <span>◉</span>
-          <small>Profile</small>
+        <NavLink to="/saved">
+          <span>◇</span>
+          <small>Saved</small>
         </NavLink>
       </nav>
 
       <button
         type="button"
-        className="mobile-create"
+        className="mobile-create qyvra-mobile-create"
         onClick={openCreate}
         aria-label="Create post"
       >
@@ -512,6 +602,14 @@ function AppShell({ user, onLogout }) {
           ↑
         </button>
       )}
+
+      <QyvraDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onCreate={openCreate}
+        user={user}
+        onLogout={onLogout}
+      />
 
       <CommandPalette
         open={commandOpen}
