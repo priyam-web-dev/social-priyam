@@ -6,7 +6,62 @@ import {
 
 import Avatar from "./Avatar";
 
+function getBookmarkKey({
+  id,
+  name,
+  handle,
+  time,
+  text,
+  imageUrl,
+}) {
+  if (id !== undefined && id !== null) {
+    return String(id);
+  }
+
+  return [
+    name,
+    handle,
+    time,
+    text,
+    imageUrl,
+  ]
+    .filter(Boolean)
+    .join("|");
+}
+
+function readBookmarks() {
+  try {
+    const raw = window.localStorage.getItem(
+      "qyvra_bookmarks"
+    );
+
+    const parsed = raw ? JSON.parse(raw) : [];
+
+    return Array.isArray(parsed)
+      ? parsed
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeBookmarks(items) {
+  try {
+    window.localStorage.setItem(
+      "qyvra_bookmarks",
+      JSON.stringify(items)
+    );
+  } catch {
+    // Ignore local storage failures.
+  }
+
+  window.dispatchEvent(
+    new Event("qyvra:bookmark-changed")
+  );
+}
+
 export default function Post({
+  id,
   name,
   handle,
   avatarUrl = "",
@@ -20,22 +75,76 @@ export default function Post({
   onReply,
   onRepost,
 }) {
-  const [liked, setLiked] = useState(false);
-  const [reposted, setReposted] = useState(false);
-  const [shared, setShared] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [likePulse, setLikePulse] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
+  const [liked, setLiked] =
+    useState(false);
 
-  const menuRef = useRef(null);
-  const shareTimerRef = useRef(null);
-  const likeTimerRef = useRef(null);
+  const [reposted, setReposted] =
+    useState(false);
+
+  const [shared, setShared] =
+    useState(false);
+
+  const [saved, setSaved] =
+    useState(false);
+
+  const [menuOpen, setMenuOpen] =
+    useState(false);
+
+  const [likePulse, setLikePulse] =
+    useState(false);
+
+  const [imageFailed, setImageFailed] =
+    useState(false);
+
+  const menuRef =
+    useRef(null);
+
+  const shareTimerRef =
+    useRef(null);
+
+  const likeTimerRef =
+    useRef(null);
+
+  const bookmarkKey = getBookmarkKey({
+    id,
+    name,
+    handle,
+    time,
+    text,
+    imageUrl,
+  });
 
   const displayedLikes =
     likes + (liked ? 1 : 0);
 
   const displayedReposts =
     reposts + (reposted ? 1 : 0);
+
+  useEffect(() => {
+    function syncSavedState() {
+      const bookmarks = readBookmarks();
+      setSaved(
+        bookmarks.some(
+          (item) =>
+            item.bookmarkKey === bookmarkKey
+        )
+      );
+    }
+
+    syncSavedState();
+
+    window.addEventListener(
+      "qyvra:bookmark-changed",
+      syncSavedState
+    );
+
+    return () => {
+      window.removeEventListener(
+        "qyvra:bookmark-changed",
+        syncSavedState
+      );
+    };
+  }, [bookmarkKey]);
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -135,6 +244,41 @@ export default function Post({
     });
   }
 
+  function handleBookmark() {
+    const current = readBookmarks();
+    const alreadySaved = current.some(
+      (item) =>
+        item.bookmarkKey === bookmarkKey
+    );
+
+    if (alreadySaved) {
+      writeBookmarks(
+        current.filter(
+          (item) =>
+            item.bookmarkKey !== bookmarkKey
+        )
+      );
+      return;
+    }
+
+    writeBookmarks([
+      {
+        bookmarkKey,
+        name,
+        handle,
+        avatarUrl,
+        text: text || "",
+        imageUrl: imageUrl || "",
+        time,
+        replies: Number(replies || 0),
+        likes: Number(likes || 0),
+        reposts: Number(reposts || 0),
+        savedAt: Date.now(),
+      },
+      ...current,
+    ]);
+  }
+
   async function handleShare() {
     try {
       if (navigator.share) {
@@ -152,8 +296,7 @@ export default function Post({
 
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(
-          text ||
-            window.location.href
+          text || window.location.href
         );
 
         showSharedState();
@@ -190,22 +333,11 @@ export default function Post({
       />
 
       <div className="post-body">
-
-        {/* TOP: metadata */}
         <div className="post-meta">
-          <strong>
-            {name}
-          </strong>
-
-          <span>
-            @{handle}
-          </span>
-
+          <strong>{name}</strong>
+          <span>@{handle}</span>
           <span>·</span>
-
-          <span>
-            {time}
-          </span>
+          <span>{time}</span>
 
           <div
             className="post-menu-wrap"
@@ -238,7 +370,6 @@ export default function Post({
                 >
                   Not interested
                 </button>
-
                 <button
                   type="button"
                   role="menuitem"
@@ -246,7 +377,6 @@ export default function Post({
                 >
                   Mute @{handle}
                 </button>
-
                 <button
                   type="button"
                   role="menuitem"
@@ -259,36 +389,31 @@ export default function Post({
           </div>
         </div>
 
-        {/* MIDDLE: image */}
-        {imageUrl &&
-          !imageFailed && (
-            <div
-              className="post-image"
-              onDoubleClick={
-                handleDoubleClick
+        {imageUrl && !imageFailed && (
+          <div
+            className="post-image"
+            onDoubleClick={
+              handleDoubleClick
+            }
+          >
+            <img
+              src={imageUrl}
+              alt="Post attachment"
+              loading="lazy"
+              decoding="async"
+              onError={() =>
+                setImageFailed(true)
               }
-            >
-              <img
-                src={imageUrl}
-                alt="Post attachment"
-                loading="lazy"
-                decoding="async"
-                onError={() =>
-                  setImageFailed(true)
-                }
-              />
-            </div>
-          )}
+            />
+          </div>
+        )}
 
-        {/* Image error */}
-        {imageUrl &&
-          imageFailed && (
-            <div className="post-image-error">
-              Image couldn't be loaded.
-            </div>
-          )}
+        {imageUrl && imageFailed && (
+          <div className="post-image-error">
+            Image couldn't be loaded.
+          </div>
+        )}
 
-        {/* BOTTOM: caption */}
         {text && (
           <p
             className="post-text"
@@ -300,9 +425,7 @@ export default function Post({
           </p>
         )}
 
-        {/* BOTTOM-MOST: actions */}
         <div className="post-actions">
-
           <button
             type="button"
             className={
@@ -325,10 +448,7 @@ export default function Post({
             <span className="post-action-icon">
               {liked ? "♥" : "♡"}
             </span>
-
-            <span>
-              {displayedLikes}
-            </span>
+            <span>{displayedLikes}</span>
           </button>
 
           <button
@@ -340,10 +460,7 @@ export default function Post({
             <span className="post-action-icon">
               ○
             </span>
-
-            <span>
-              {replies}
-            </span>
+            <span>{replies}</span>
           </button>
 
           <button
@@ -364,10 +481,7 @@ export default function Post({
             <span className="post-action-icon">
               ↻
             </span>
-
-            <span>
-              {displayedReposts}
-            </span>
+            <span>{displayedReposts}</span>
           </button>
 
           <button
@@ -387,14 +501,31 @@ export default function Post({
             <span className="post-action-icon">
               {shared ? "✓" : "↗"}
             </span>
-
             <span>
-              {shared
-                ? "Shared"
-                : "Share"}
+              {shared ? "Shared" : "Share"}
             </span>
           </button>
 
+          <button
+            type="button"
+            className={
+              saved
+                ? "post-action post-save-action saved"
+                : "post-action post-save-action"
+            }
+            onClick={handleBookmark}
+            aria-label={
+              saved
+                ? "Remove bookmark"
+                : "Save post"
+            }
+            aria-pressed={saved}
+          >
+            <span className="post-action-icon">
+              {saved ? "◆" : "◇"}
+            </span>
+            <span>{saved ? "Saved" : "Save"}</span>
+          </button>
         </div>
       </div>
     </article>
