@@ -1,8 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Avatar from "../components/Avatar";
 import { supabase } from "../lib/supabase";
@@ -39,218 +35,179 @@ function getFallbackAvatar(user) {
   );
 }
 
-function ProfileSquare({
-  name = "User",
-  src = "",
-  size = 92,
-  className = "",
-  responsive = false,
-}) {
-  const initial =
-    (name || "U")
-      .trim()
-      .charAt(0)
-      .toUpperCase() || "U";
-
-  const dimension =
-    responsive
-      ? "100%"
-      : `${size}px`;
-
-  return (
-    <div
-      className={className}
-      style={{
-        width: dimension,
-        height: dimension,
-        minWidth:
-          responsive
-            ? "0"
-            : dimension,
-        minHeight:
-          responsive
-            ? "0"
-            : dimension,
-        aspectRatio: "1 / 1",
-        overflow: "hidden",
-        display: "grid",
-        placeItems: "center",
-        borderRadius: "8px",
-        border:
-          "1px solid var(--text)",
-        background:
-          "var(--accent)",
-        color: "#fff",
-        fontFamily:
-          "var(--display-font)",
-        fontSize: responsive
-          ? "clamp(28px, 10vw, 52px)"
-          : `${Math.max(
-              18,
-              Math.round(
-                size * 0.29
-              )
-            )}px`,
-        fontWeight: 700,
-        lineHeight: 1,
-      }}
-    >
-      {src ? (
-        <img
-          src={src}
-          alt=""
-          style={{
-            display: "block",
-            width: "100%",
-            height: "100%",
-            minWidth: "100%",
-            minHeight: "100%",
-            objectFit: "cover",
-            objectPosition:
-              "center center",
-          }}
-        />
-      ) : (
-        initial
-      )}
-    </div>
-  );
-}
-
 function cleanUsername(value = "") {
   return value
     .trim()
     .toLowerCase()
-    .replace(
-      /[^a-z0-9_]/g,
-      ""
-    )
+    .replace(/[^a-z0-9_]/g, "")
     .slice(0, 24);
 }
 
-function formatTime(dateString) {
-  if (!dateString) {
-    return "";
+/* =========================================================
+   IMAGE COMPRESSION
+   Compress client-side before Supabase storage upload.
+   Target is roughly 30% storage reduction while preserving
+   the original aspect ratio. Small files are never inflated.
+   ========================================================= */
+async function compressImageForUpload(file, targetRatio = 0.7) {
+  if (!file || !file.type?.startsWith("image/")) {
+    return file;
   }
 
-  const date =
-    new Date(dateString);
+  if (file.size < 150 * 1024) {
+    return file;
+  }
 
-  const now =
-    new Date();
+  const bitmap = await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
 
-  const difference =
-    Math.max(
-      0,
-      now.getTime() -
-        date.getTime()
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read the selected image."));
+    };
+
+    image.src = url;
+  });
+
+  const maxDimension = 2400;
+  const sourceWidth = bitmap.naturalWidth || bitmap.width;
+  const sourceHeight = bitmap.naturalHeight || bitmap.height;
+  const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d", { alpha: true });
+  if (!context) {
+    return file;
+  }
+
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(bitmap, 0, 0, width, height);
+
+  const mimeType = "image/webp";
+  const targetBytes = Math.floor(file.size * targetRatio);
+
+  const makeBlob = (quality) =>
+    new Promise((resolve) =>
+      canvas.toBlob(resolve, mimeType, quality)
     );
 
-  const minutes =
-    Math.floor(
-      difference / 60000
-    );
+  let best = await makeBlob(0.86);
 
-  const hours =
-    Math.floor(
-      difference / 3600000
-    );
-
-  const days =
-    Math.floor(
-      difference / 86400000
-    );
-
-  if (minutes < 1) {
-    return "now";
+  if (!best) {
+    return file;
   }
 
-  if (minutes < 60) {
-    return `${minutes}m`;
+  if (best.size > targetBytes) {
+    for (const quality of [0.82, 0.78, 0.74, 0.70, 0.66, 0.62, 0.58, 0.54]) {
+      const candidate = await makeBlob(quality);
+      if (!candidate) continue;
+      best = candidate;
+      if (candidate.size <= targetBytes) break;
+    }
   }
 
-  if (hours < 24) {
-    return `${hours}h`;
+  // Never replace an image with a larger file.
+  if (best.size >= file.size) {
+    return file;
   }
 
-  if (days < 7) {
-    return `${days}d`;
-  }
+  const baseName =
+    file.name.replace(/\.[^.]+$/, "") || "image";
 
-  return date.toLocaleDateString(
-    undefined,
+  return new File(
+    [best],
+    `${baseName}.webp`,
     {
-      day: "numeric",
-      month: "short",
+      type: mimeType,
+      lastModified: Date.now(),
     }
   );
 }
 
+function getPostImageUrl(post) {
+  const candidates = [
+    post?.image_url,
+    post?.imageUrl,
+    post?.media_url,
+    post?.mediaUrl,
+    post?.attachment_url,
+    post?.attachmentUrl,
+  ];
+
+  const explicit = candidates.find(
+    (value) => typeof value === "string" && value.trim()
+  );
+
+  if (explicit) return explicit.trim();
+
+  const content =
+    typeof post?.content === "string"
+      ? post.content.trim()
+      : "";
+
+  if (/^https?:\/\/.+\.(?:jpe?g|png|webp|gif)(?:[?#].*)?$/i.test(content)) {
+    return content;
+  }
+
+  return "";
+}
+
+function isImageOnlyPost(post) {
+  const imageUrl = getPostImageUrl(post);
+  const content =
+    typeof post?.content === "string"
+      ? post.content.trim()
+      : "";
+
+  return Boolean(
+    imageUrl &&
+    content === imageUrl &&
+    /^https?:\/\//i.test(content)
+  );
+}
+
 function ProfilePage({ user }) {
-  const [activeTab, setActiveTab] =
-    useState("Posts");
+  const [activeTab, setActiveTab] = useState("Posts");
 
-  const [profile, setProfile] =
-    useState(null);
+  const [profile, setProfile] = useState(null);
 
-  const [stats, setStats] =
-    useState({
-      posts: 0,
-      followers: 0,
-      following: 0,
-    });
+  const [stats, setStats] = useState({
+    posts: 0,
+    followers: 0,
+    following: 0,
+  });
 
-  const [posts, setPosts] =
-    useState([]);
+  const [posts, setPosts] = useState([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editMessage, setEditMessage] = useState("");
 
-  const [editOpen, setEditOpen] =
-    useState(false);
+  const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editAvatarUrl, setEditAvatarUrl] = useState("");
 
-  const [
-    savingProfile,
-    setSavingProfile,
-  ] = useState(false);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
 
-  const [editError, setEditError] =
-    useState("");
-
-  const [
-    editMessage,
-    setEditMessage,
-  ] = useState("");
-
-  const [editName, setEditName] =
-    useState("");
-
-  const [
-    editUsername,
-    setEditUsername,
-  ] = useState("");
-
-  const [editBio, setEditBio] =
-    useState("");
-
-  const [
-    editAvatarUrl,
-    setEditAvatarUrl,
-  ] = useState("");
-
-  const [avatarFile, setAvatarFile] =
-    useState(null);
-
-  const [
-    avatarPreview,
-    setAvatarPreview,
-  ] = useState("");
-
-  const fileInputRef =
-    useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (!user?.id) {
@@ -262,48 +219,24 @@ function ProfilePage({ user }) {
   }, [user?.id]);
 
   useEffect(() => {
-    function handlePostCreated() {
-      if (user?.id) {
-        loadProfile();
-      }
-    }
-
-    window.addEventListener(
-      "social:post-created",
-      handlePostCreated
-    );
-
     return () => {
-      window.removeEventListener(
-        "social:post-created",
-        handlePostCreated
-      );
-    };
-  }, [user?.id]);
-
-  useEffect(() => {
-    return () => {
-      if (
-        avatarPreview?.startsWith(
-          "blob:"
-        )
-      ) {
-        URL.revokeObjectURL(
-          avatarPreview
-        );
+      if (avatarPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(avatarPreview);
       }
     };
   }, [avatarPreview]);
 
   async function loadProfile() {
-    if (!user?.id) {
-      return;
-    }
-
     setLoading(true);
     setError("");
 
     try {
+      /*
+       * ------------------------------------------
+       * 1. LOAD REAL PROFILE
+       * ------------------------------------------
+       */
+
       const {
         data: profileData,
         error: profileError,
@@ -326,9 +259,7 @@ function ProfilePage({ user }) {
 
         username:
           profileData?.username ||
-          getFallbackUsername(
-            user
-          ),
+          getFallbackUsername(user),
 
         bio:
           profileData?.bio ||
@@ -336,153 +267,118 @@ function ProfilePage({ user }) {
 
         avatarUrl:
           profileData?.avatar_url ||
-          getFallbackAvatar(
-            user
-          ),
+          getFallbackAvatar(user),
       });
+
+      /*
+       * ------------------------------------------
+       * 2. LOAD POST COUNT
+       * ------------------------------------------
+       */
 
       const {
         count: postCount,
+        error: postCountError,
       } = await supabase
         .from("posts")
         .select("id", {
           count: "exact",
           head: true,
         })
-        .eq(
-          "author_id",
-          user.id
+        .eq("author_id", user.id);
+
+      if (postCountError) {
+        console.error(
+          "Post count error:",
+          postCountError
         );
+      }
+
+      /*
+       * ------------------------------------------
+       * 3. LOAD FOLLOWER COUNT
+       * ------------------------------------------
+       */
 
       const {
         count: followerCount,
+        error: followerError,
       } = await supabase
         .from("follows")
-        .select(
-          "follower_id",
-          {
-            count: "exact",
-            head: true,
-          }
-        )
-        .eq(
-          "following_id",
-          user.id
+        .select("follower_id", {
+          count: "exact",
+          head: true,
+        })
+        .eq("following_id", user.id);
+
+      if (followerError) {
+        console.error(
+          "Follower count error:",
+          followerError
         );
+      }
+
+      /*
+       * ------------------------------------------
+       * 4. LOAD FOLLOWING COUNT
+       * ------------------------------------------
+       */
 
       const {
         count: followingCount,
+        error: followingError,
       } = await supabase
         .from("follows")
-        .select(
-          "following_id",
-          {
-            count: "exact",
-            head: true,
-          }
-        )
-        .eq(
-          "follower_id",
-          user.id
+        .select("following_id", {
+          count: "exact",
+          head: true,
+        })
+        .eq("follower_id", user.id);
+
+      if (followingError) {
+        console.error(
+          "Following count error:",
+          followingError
         );
+      }
 
       setStats({
-        posts:
-          postCount || 0,
-        followers:
-          followerCount || 0,
-        following:
-          followingCount || 0,
+        posts: postCount || 0,
+        followers: followerCount || 0,
+        following: followingCount || 0,
       });
 
       /*
-       * IMPORTANT:
-       * image_url is now selected.
+       * ------------------------------------------
+       * 5. LOAD REAL POSTS
+       * ------------------------------------------
        */
+
       const {
         data: postData,
         error: postsError,
       } = await supabase
         .from("posts")
-        .select(
-          `
-            id,
-            content,
-            image_url,
-            created_at,
-            likes_count,
-            replies_count,
-            reposts_count,
-            likes,
-            replies,
-            reposts
-          `
-        )
-        .eq(
-          "author_id",
-          user.id
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        );
+        .select("*")
+        .eq("author_id", user.id)
+        .order("created_at", {
+          ascending: false,
+        });
 
-      /*
-       * Some versions of the table may only
-       * have likes/replies/reposts or only
-       * the *_count fields.
-       *
-       * If that exact mixed select fails,
-       * retry with the fields visible in
-       * your current schema.
-       */
       if (postsError) {
-        const {
-          data: fallbackPosts,
-          error:
-            fallbackError,
-        } = await supabase
-          .from("posts")
-          .select(
-            `
-              id,
-              content,
-              image_url,
-              created_at,
-              likes,
-              replies,
-              reposts
-            `
-          )
-          .eq(
-            "author_id",
-            user.id
-          )
-          .order(
-            "created_at",
-            {
-              ascending: false,
-            }
-          );
-
-        if (fallbackError) {
-          throw fallbackError;
-        }
-
-        setPosts(
-          fallbackPosts || []
+        console.error(
+          "Posts loading error:",
+          postsError
         );
+
+        setPosts([]);
       } else {
-        setPosts(
-          postData || []
-        );
+        setPosts(postData || []);
       }
-    } catch (loadError) {
+    } catch (err) {
       console.error(
         "Profile loading failed:",
-        loadError
+        err
       );
 
       setError(
@@ -494,46 +390,20 @@ function ProfilePage({ user }) {
   }
 
   function openEditProfile() {
-    const current =
-      profile || {
-        name:
-          getFallbackName(user),
+    const current = profile || {
+      name: getFallbackName(user),
+      username: getFallbackUsername(user),
+      bio: getFallbackBio(user),
+      avatarUrl: getFallbackAvatar(user),
+    };
 
-        username:
-          getFallbackUsername(
-            user
-          ),
-
-        bio:
-          getFallbackBio(user),
-
-        avatarUrl:
-          getFallbackAvatar(
-            user
-          ),
-      };
-
-    setEditName(
-      current.name || ""
-    );
-
-    setEditUsername(
-      current.username || ""
-    );
-
-    setEditBio(
-      current.bio || ""
-    );
-
-    setEditAvatarUrl(
-      current.avatarUrl || ""
-    );
+    setEditName(current.name || "");
+    setEditUsername(current.username || "");
+    setEditBio(current.bio || "");
+    setEditAvatarUrl(current.avatarUrl || "");
 
     setAvatarFile(null);
-
-    setAvatarPreview(
-      current.avatarUrl || ""
-    );
+    setAvatarPreview(current.avatarUrl || "");
 
     setEditError("");
     setEditMessage("");
@@ -549,25 +419,16 @@ function ProfilePage({ user }) {
     setEditError("");
     setEditMessage("");
 
-    if (
-      avatarPreview?.startsWith(
-        "blob:"
-      )
-    ) {
-      URL.revokeObjectURL(
-        avatarPreview
-      );
+    if (avatarPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
     }
 
     setAvatarFile(null);
     setAvatarPreview("");
   }
 
-  function handleAvatarChange(
-    event
-  ) {
-    const file =
-      event.target.files?.[0];
+  function handleAvatarChange(event) {
+    const file = event.target.files?.[0];
 
     if (!file) {
       return;
@@ -576,11 +437,7 @@ function ProfilePage({ user }) {
     setEditError("");
     setEditMessage("");
 
-    if (
-      !file.type.startsWith(
-        "image/"
-      )
-    ) {
+    if (!file.type.startsWith("image/")) {
       setEditError(
         "Please choose an image file."
       );
@@ -589,10 +446,7 @@ function ProfilePage({ user }) {
       return;
     }
 
-    if (
-      file.size >
-      5 * 1024 * 1024
-    ) {
+    if (file.size > 5 * 1024 * 1024) {
       setEditError(
         "Profile picture must be smaller than 5 MB."
       );
@@ -601,36 +455,19 @@ function ProfilePage({ user }) {
       return;
     }
 
-    if (
-      avatarPreview?.startsWith(
-        "blob:"
-      )
-    ) {
-      URL.revokeObjectURL(
-        avatarPreview
-      );
+    if (avatarPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
     }
 
-    const previewUrl =
-      URL.createObjectURL(
-        file
-      );
+    const previewUrl = URL.createObjectURL(file);
 
     setAvatarFile(file);
-    setAvatarPreview(
-      previewUrl
-    );
+    setAvatarPreview(previewUrl);
   }
 
   function removeSelectedAvatar() {
-    if (
-      avatarPreview?.startsWith(
-        "blob:"
-      )
-    ) {
-      URL.revokeObjectURL(
-        avatarPreview
-      );
+    if (avatarPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
     }
 
     setAvatarFile(null);
@@ -638,38 +475,36 @@ function ProfilePage({ user }) {
     setEditAvatarUrl("");
 
     if (fileInputRef.current) {
-      fileInputRef.current.value =
-        "";
+      fileInputRef.current.value = "";
     }
   }
 
-  async function uploadAvatar(
-    file
-  ) {
+  async function uploadAvatar(file) {
     if (!file) {
       return editAvatarUrl || "";
     }
 
+    const compressedFile =
+      await compressImageForUpload(file, 0.7);
+
     const extension =
-      file.name
-        .split(".")
-        .pop()
-        ?.toLowerCase() ||
-      "jpg";
+      compressedFile.name.split(".").pop()?.toLowerCase() ||
+      "webp";
 
-    const safeExtension =
-      [
-        "jpg",
-        "jpeg",
-        "png",
-        "webp",
-        "gif",
-      ].includes(
-        extension
-      )
-        ? extension
-        : "jpg";
+    const safeExtension = [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp",
+      "gif",
+    ].includes(extension)
+      ? extension
+      : "webp";
 
+    /*
+     * Each upload gets its own filename.
+     * This avoids stale browser/CDN cache.
+     */
     const filePath =
       `${user.id}/${Date.now()}-${crypto.randomUUID()}.${safeExtension}`;
 
@@ -677,17 +512,11 @@ function ProfilePage({ user }) {
       error: uploadError,
     } = await supabase.storage
       .from("avatars")
-      .upload(
-        filePath,
-        file,
-        {
-          cacheControl:
-            "3600",
-          upsert: false,
-          contentType:
-            file.type,
-        }
-      );
+      .upload(filePath, compressedFile, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: compressedFile.type,
+      });
 
     if (uploadError) {
       throw uploadError;
@@ -697,19 +526,12 @@ function ProfilePage({ user }) {
       data: publicUrlData,
     } = supabase.storage
       .from("avatars")
-      .getPublicUrl(
-        filePath
-      );
+      .getPublicUrl(filePath);
 
-    return (
-      publicUrlData?.publicUrl ||
-      ""
-    );
+    return publicUrlData?.publicUrl || "";
   }
 
-  async function saveProfile(
-    event
-  ) {
+  async function saveProfile(event) {
     event.preventDefault();
 
     if (savingProfile) {
@@ -721,18 +543,9 @@ function ProfilePage({ user }) {
     setEditMessage("");
 
     try {
-      const name =
-        editName.trim();
-
-      const username =
-        cleanUsername(
-          editUsername
-        );
-
-      const bio =
-        editBio
-          .trim()
-          .slice(0, 160);
+      const name = editName.trim();
+      const username = cleanUsername(editUsername);
+      const bio = editBio.trim().slice(0, 160);
 
       if (!name) {
         throw new Error(
@@ -758,21 +571,20 @@ function ProfilePage({ user }) {
         );
       }
 
+      /*
+       * ------------------------------------------
+       * CHECK USERNAME AVAILABILITY
+       * ------------------------------------------
+       */
+
       const {
         data: existingProfiles,
-        error:
-          usernameError,
+        error: usernameError,
       } = await supabase
         .from("profiles")
         .select("id")
-        .eq(
-          "username",
-          username
-        )
-        .neq(
-          "id",
-          user.id
-        )
+        .eq("username", username)
+        .neq("id", user.id)
         .limit(1);
 
       if (usernameError) {
@@ -781,66 +593,79 @@ function ProfilePage({ user }) {
 
       if (
         existingProfiles &&
-        existingProfiles.length >
-          0
+        existingProfiles.length > 0
       ) {
         throw new Error(
           "That username is already taken."
         );
       }
 
-      let avatarUrl =
-        editAvatarUrl || "";
+      /*
+       * ------------------------------------------
+       * UPLOAD NEW AVATAR
+       * ------------------------------------------
+       */
+
+      let avatarUrl = editAvatarUrl || "";
 
       if (avatarFile) {
-        avatarUrl =
-          await uploadAvatar(
-            avatarFile
-          );
+        avatarUrl = await uploadAvatar(
+          avatarFile
+        );
       }
 
+      /*
+       * ------------------------------------------
+       * UPDATE PROFILES TABLE
+       * ------------------------------------------
+       */
+
       const {
-        error:
-          profileUpdateError,
+        error: profileUpdateError,
       } = await supabase
         .from("profiles")
         .update({
-          display_name:
-            name,
-
+          display_name: name,
           username,
-
           bio,
-
-          avatar_url:
-            avatarUrl ||
-            null,
-
-          updated_at:
-            new Date().toISOString(),
+          avatar_url: avatarUrl || null,
+          updated_at: new Date().toISOString(),
         })
-        .eq(
-          "id",
-          user.id
-        );
+        .eq("id", user.id);
 
       if (profileUpdateError) {
         throw profileUpdateError;
       }
 
-      await supabase.auth.updateUser(
-        {
-          data: {
-            display_name:
-              name,
-            username,
-            bio,
-            avatar_url:
-              avatarUrl ||
-              null,
-          },
-        }
-      );
+      /*
+       * ------------------------------------------
+       * KEEP SUPABASE AUTH METADATA IN SYNC
+       * ------------------------------------------
+       */
+
+      const {
+        error: metadataError,
+      } = await supabase.auth.updateUser({
+        data: {
+          display_name: name,
+          username,
+          bio,
+          avatar_url: avatarUrl || null,
+        },
+      });
+
+      if (metadataError) {
+        console.warn(
+          "Auth metadata update failed:",
+          metadataError
+        );
+      }
+
+      /*
+       * ------------------------------------------
+       * UPDATE UI IMMEDIATELY
+       * ------------------------------------------
+       */
 
       setProfile({
         name,
@@ -851,10 +676,7 @@ function ProfilePage({ user }) {
         avatarUrl,
       });
 
-      setEditAvatarUrl(
-        avatarUrl
-      );
-
+      setEditAvatarUrl(avatarUrl);
       setAvatarFile(null);
 
       setEditMessage(
@@ -872,8 +694,7 @@ function ProfilePage({ user }) {
       );
 
       const message =
-        saveError?.message ||
-        "";
+        saveError?.message || "";
 
       if (
         message
@@ -883,6 +704,14 @@ function ProfilePage({ user }) {
         setEditError(
           "That username is already taken."
         );
+      } else if (
+        message
+          .toLowerCase()
+          .includes("row-level security")
+      ) {
+        setEditError(
+          "You don't have permission to update this profile."
+        );
       } else {
         setEditError(
           message ||
@@ -890,10 +719,56 @@ function ProfilePage({ user }) {
         );
       }
     } finally {
-      setSavingProfile(
-        false
-      );
+      setSavingProfile(false);
     }
+  }
+
+  function formatTime(dateString) {
+    if (!dateString) {
+      return "";
+    }
+
+    const date = new Date(dateString);
+    const now = new Date();
+
+    const difference =
+      now.getTime() - date.getTime();
+
+    const minutes = Math.floor(
+      difference / 60000
+    );
+
+    if (minutes < 1) {
+      return "now";
+    }
+
+    if (minutes < 60) {
+      return `${minutes}m`;
+    }
+
+    const hours = Math.floor(
+      minutes / 60
+    );
+
+    if (hours < 24) {
+      return `${hours}h`;
+    }
+
+    const days = Math.floor(
+      hours / 24
+    );
+
+    if (days < 7) {
+      return `${days}d`;
+    }
+
+    return date.toLocaleDateString(
+      undefined,
+      {
+        day: "numeric",
+        month: "short",
+      }
+    );
   }
 
   if (loading) {
@@ -912,39 +787,22 @@ function ProfilePage({ user }) {
     );
   }
 
-  const displayProfile =
-    profile || {
-      name:
-        getFallbackName(
-          user
-        ),
-      username:
-        getFallbackUsername(
-          user
-        ),
-      bio:
-        getFallbackBio(
-          user
-        ),
-      avatarUrl:
-        getFallbackAvatar(
-          user
-        ),
-    };
+  const displayProfile = profile || {
+    name: getFallbackName(user),
+    username: getFallbackUsername(user),
+    bio: getFallbackBio(user),
+    avatarUrl: getFallbackAvatar(user),
+  };
 
   return (
     <div className="profile-page">
       {error && (
         <div className="profile-error">
-          <span>
-            {error}
-          </span>
+          <span>{error}</span>
 
           <button
             type="button"
-            onClick={
-              loadProfile
-            }
+            onClick={loadProfile}
           >
             Try again
           </button>
@@ -953,14 +811,12 @@ function ProfilePage({ user }) {
 
       <section className="profile-header">
         <div className="profile-avatar-wrap">
-          <ProfileSquare
-            name={
-              displayProfile.name
-            }
-            size={92}
+          <Avatar
+            name={displayProfile.name}
+            size="lg"
             src={
               displayProfile.avatarUrl ||
-              ""
+              undefined
             }
           />
 
@@ -973,65 +829,44 @@ function ProfilePage({ user }) {
         <div className="profile-main">
           <div className="profile-name-row">
             <div>
-              <h1>
-                {displayProfile.name}
-              </h1>
+              <h1>{displayProfile.name}</h1>
 
               <span>
-                @
-                {
-                  displayProfile.username
-                }
+                @{displayProfile.username}
               </span>
             </div>
 
             <button
               type="button"
               className="profile-follow-button following"
-              onClick={
-                openEditProfile
-              }
+              onClick={openEditProfile}
             >
               Edit profile
             </button>
           </div>
 
           <p className="profile-bio">
-            {
-              displayProfile.bio
-            }
+            {displayProfile.bio}
           </p>
 
           <div className="profile-stats">
             <button type="button">
-              <strong>
-                {stats.posts}
-              </strong>
-              <span>
-                posts
-              </span>
+              <strong>{stats.posts}</strong>
+              <span>posts</span>
             </button>
 
             <button type="button">
               <strong>
-                {
-                  stats.followers
-                }
+                {stats.followers}
               </strong>
-              <span>
-                followers
-              </span>
+              <span>followers</span>
             </button>
 
             <button type="button">
               <strong>
-                {
-                  stats.following
-                }
+                {stats.following}
               </strong>
-              <span>
-                following
-              </span>
+              <span>following</span>
             </button>
           </div>
         </div>
@@ -1041,25 +876,18 @@ function ProfilePage({ user }) {
         className="profile-tabs"
         aria-label="Profile sections"
       >
-        {[
-          "Posts",
-          "Replies",
-          "Likes",
-        ].map(
+        {["Posts", "Replies", "Likes"].map(
           (tab) => (
             <button
               type="button"
               key={tab}
               className={
-                activeTab ===
-                tab
+                activeTab === tab
                   ? "active"
                   : ""
               }
               onClick={() =>
-                setActiveTab(
-                  tab
-                )
+                setActiveTab(tab)
               }
             >
               {tab}
@@ -1068,132 +896,70 @@ function ProfilePage({ user }) {
         )}
       </nav>
 
-      {activeTab ===
-        "Posts" && (
+      {activeTab === "Posts" && (
         <div className="profile-posts">
-          {posts.length >
-          0 ? (
-            posts.map(
-              (
-                post,
-                index
-              ) => {
-                const likes =
-                  Number(
-                    post.likes ??
-                      post.likes_count ??
-                      0
-                  );
+          {posts.length > 0 ? (
+            posts.map((post, index) => (
+              <article
+                className="profile-post"
+                key={post.id}
+              >
+                <div className="profile-post-top">
+                  <span>
+                    {String(
+                      index + 1
+                    ).padStart(2, "0")}
+                  </span>
 
-                const replies =
-                  Number(
-                    post.replies ??
-                      post.replies_count ??
-                      0
-                  );
-
-                const reposts =
-                  Number(
-                    post.reposts ??
-                      post.reposts_count ??
-                      0
-                  );
-
-                return (
-                  <article
-                    className="profile-post"
-                    key={
-                      post.id
-                    }
-                  >
-                    <div className="profile-post-top">
-                      <span>
-                        {String(
-                          index +
-                            1
-                        ).padStart(
-                          2,
-                          "0"
-                        )}
-                      </span>
-
-                      <small>
-                        {formatTime(
-                          post.created_at
-                        )}
-                      </small>
-                    </div>
-
-                    {post.content && (
-                      <p>
-                        {
-                          post.content
-                        }
-                      </p>
+                  <small>
+                    {formatTime(
+                      post.created_at
                     )}
+                  </small>
+                </div>
 
-                    {post.image_url && (
-                      <div
+                <div className="profile-post-content">
+                  {getPostImageUrl(post) && (
+                    <div className="profile-post-image-wrap">
+                      <img
                         className="profile-post-image"
-                        style={{
-                          width:
-                            "100%",
-                          marginTop:
-                            post.content
-                              ? "14px"
-                              : "4px",
-                          overflow:
-                            "hidden",
-                          borderRadius:
-                            "10px",
-                          border:
-                            "1px solid var(--line)",
-                          background:
-                            "var(--surface-2)",
-                        }}
-                      >
-                        <img
-                          src={
-                            post.image_url
-                          }
-                          alt="Post attachment"
-                          loading="lazy"
-                          style={{
-                            display:
-                              "block",
-                            width:
-                              "100%",
-                            maxHeight:
-                              "460px",
-                            objectFit:
-                              "contain",
-                            background:
-                              "var(--surface-2)",
-                          }}
-                        />
-                      </div>
-                    )}
-
-                    <div className="profile-post-bottom">
-                      <span>
-                        ♡{" "}
-                        {likes}
-                      </span>
-
-                      <span>
-                        ○{" "}
-                        {replies}
-                      </span>
-
-                      <span>
-                        ↻{" "}
-                        {reposts}
-                      </span>
+                        src={getPostImageUrl(post)}
+                        alt={
+                          isImageOnlyPost(post)
+                            ? "Post image"
+                            : "Attached post image"
+                        }
+                        loading="lazy"
+                        decoding="async"
+                      />
                     </div>
-                  </article>
-                );
-              }
-            )
+                  )}
+
+                  {!isImageOnlyPost(post) && post.content && (
+                    <p>{post.content}</p>
+                  )}
+                </div>
+
+                <div className="profile-post-bottom">
+                  <span>
+                    ♡{" "}
+                    {post.likes_count || 0}
+                  </span>
+
+                  <span>
+                    ○{" "}
+                    {post.replies_count ||
+                      0}
+                  </span>
+
+                  <span>
+                    ↻{" "}
+                    {post.reposts_count ||
+                      0}
+                  </span>
+                </div>
+              </article>
+            ))
           ) : (
             <div className="quiet-state">
               <strong>
@@ -1201,35 +967,36 @@ function ProfilePage({ user }) {
               </strong>
 
               <span>
-                Your posts will appear here when you start sharing.
+                Your posts will appear here
+                when you start sharing.
               </span>
             </div>
           )}
         </div>
       )}
 
-      {activeTab ===
-        "Replies" && (
+      {activeTab === "Replies" && (
         <div className="quiet-state">
           <strong>
             No replies yet.
           </strong>
 
           <span>
-            Replies you make will appear here.
+            Replies you make will appear
+            here.
           </span>
         </div>
       )}
 
-      {activeTab ===
-        "Likes" && (
+      {activeTab === "Likes" && (
         <div className="quiet-state">
           <strong>
             No liked posts yet.
           </strong>
 
           <span>
-            Posts you like will appear here.
+            Posts you like will appear
+            here.
           </span>
         </div>
       )}
@@ -1238,12 +1005,9 @@ function ProfilePage({ user }) {
         <div
           className="profile-edit-overlay"
           role="presentation"
-          onMouseDown={(
-            event
-          ) => {
+          onMouseDown={(event) => {
             if (
-              event.target ===
-              event.currentTarget
+              event.target === event.currentTarget
             ) {
               closeEditProfile();
             }
@@ -1266,19 +1030,16 @@ function ProfilePage({ user }) {
                 </h2>
 
                 <p>
-                  Make your corner feel like yours.
+                  Make your corner feel like
+                  yours.
                 </p>
               </div>
 
               <button
                 type="button"
                 className="profile-edit-close"
-                onClick={
-                  closeEditProfile
-                }
-                disabled={
-                  savingProfile
-                }
+                onClick={closeEditProfile}
+                disabled={savingProfile}
                 aria-label="Close"
               >
                 ×
@@ -1287,35 +1048,17 @@ function ProfilePage({ user }) {
 
             <form
               className="profile-edit-form"
-              onSubmit={
-                saveProfile
-              }
+              onSubmit={saveProfile}
             >
               <div className="profile-edit-avatar-section">
-                <div
-                  className="profile-edit-avatar"
-                  style={{
-                    width:
-                      "min(180px, 100%)",
-                    aspectRatio:
-                      "1 / 1",
-                    overflow:
-                      "hidden",
-                    flex:
-                      "0 0 auto",
-                  }}
-                >
-                  <ProfileSquare
-                    name={
-                      editName ||
-                      "User"
-                    }
-                    responsive
+                <div className="profile-edit-avatar">
+                  <Avatar
+                    name={editName || "User"}
+                    size="lg"
                     src={
                       avatarPreview ||
-                      ""
+                      undefined
                     }
-                    className="profile-edit-avatar-image"
                   />
                 </div>
 
@@ -1325,7 +1068,8 @@ function ProfilePage({ user }) {
                   </strong>
 
                   <span>
-                    JPG, PNG, WEBP or GIF. Max 5 MB.
+                    JPG, PNG, WEBP or GIF.
+                    Max 5 MB.
                   </span>
 
                   <div>
@@ -1335,9 +1079,7 @@ function ProfilePage({ user }) {
                       onClick={() =>
                         fileInputRef.current?.click()
                       }
-                      disabled={
-                        savingProfile
-                      }
+                      disabled={savingProfile}
                     >
                       {avatarPreview
                         ? "Change photo"
@@ -1361,9 +1103,7 @@ function ProfilePage({ user }) {
                   </div>
 
                   <input
-                    ref={
-                      fileInputRef
-                    }
+                    ref={fileInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif"
                     onChange={
@@ -1375,29 +1115,20 @@ function ProfilePage({ user }) {
               </div>
 
               <label className="profile-edit-field">
-                <span>
-                  Name
-                </span>
+                <span>Name</span>
 
                 <input
                   type="text"
-                  value={
-                    editName
-                  }
-                  onChange={(
-                    event
-                  ) =>
+                  value={editName}
+                  onChange={(event) =>
                     setEditName(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   placeholder="Your name"
                   maxLength={60}
                   autoComplete="name"
-                  disabled={
-                    savingProfile
-                  }
+                  disabled={savingProfile}
                 />
 
                 <small>
@@ -1406,54 +1137,38 @@ function ProfilePage({ user }) {
               </label>
 
               <label className="profile-edit-field">
-                <span>
-                  Username
-                </span>
+                <span>Username</span>
 
                 <div className="profile-edit-username">
-                  <b>
-                    @
-                  </b>
+                  <b>@</b>
 
                   <input
                     type="text"
-                    value={
-                      editUsername
-                    }
-                    onChange={(
-                      event
-                    ) =>
+                    value={editUsername}
+                    onChange={(event) =>
                       setEditUsername(
-                        event.target
-                          .value
+                        event.target.value
                       )
                     }
                     placeholder="yourname"
                     maxLength={24}
                     autoComplete="username"
-                    disabled={
-                      savingProfile
-                    }
+                    disabled={savingProfile}
                   />
                 </div>
 
                 <small>
-                  Letters, numbers and underscores only.
+                  Letters, numbers and
+                  underscores only.
                 </small>
               </label>
 
               <label className="profile-edit-field">
-                <span>
-                  Bio
-                </span>
+                <span>Bio</span>
 
                 <textarea
-                  value={
-                    editBio
-                  }
-                  onChange={(
-                    event
-                  ) =>
+                  value={editBio}
+                  onChange={(event) =>
                     setEditBio(
                       event.target.value.slice(
                         0,
@@ -1464,9 +1179,7 @@ function ProfilePage({ user }) {
                   placeholder="Tell people a little about you..."
                   maxLength={160}
                   rows={4}
-                  disabled={
-                    savingProfile
-                  }
+                  disabled={savingProfile}
                 />
 
                 <small>
@@ -1476,17 +1189,13 @@ function ProfilePage({ user }) {
 
               {editError && (
                 <div className="profile-edit-message error">
-                  {
-                    editError
-                  }
+                  {editError}
                 </div>
               )}
 
               {editMessage && (
                 <div className="profile-edit-message success">
-                  {
-                    editMessage
-                  }
+                  {editMessage}
                 </div>
               )}
 
@@ -1494,12 +1203,8 @@ function ProfilePage({ user }) {
                 <button
                   type="button"
                   className="profile-edit-cancel"
-                  onClick={
-                    closeEditProfile
-                  }
-                  disabled={
-                    savingProfile
-                  }
+                  onClick={closeEditProfile}
+                  disabled={savingProfile}
                 >
                   Cancel
                 </button>
@@ -1507,9 +1212,7 @@ function ProfilePage({ user }) {
                 <button
                   type="submit"
                   className="profile-edit-save"
-                  disabled={
-                    savingProfile
-                  }
+                  disabled={savingProfile}
                 >
                   {savingProfile
                     ? "Saving..."
@@ -1528,9 +1231,7 @@ function NotificationsPage() {
   return (
     <div className="activity-page">
       <div className="utility-bar">
-        <span>
-          Activity
-        </span>
+        <span>Activity</span>
       </div>
 
       <div className="quiet-state">
@@ -1539,7 +1240,8 @@ function NotificationsPage() {
         </strong>
 
         <span>
-          When someone interacts with your posts, you'll see it here.
+          When someone interacts with
+          your posts, you'll see it here.
         </span>
       </div>
     </div>
@@ -1550,23 +1252,13 @@ export default function BasicPage({
   type,
   user,
 }) {
-  if (
-    type ===
-    "notifications"
-  ) {
-    return (
-      <NotificationsPage />
-    );
+  if (type === "notifications") {
+    return <NotificationsPage />;
   }
 
-  if (
-    type ===
-    "profile"
-  ) {
+  if (type === "profile") {
     return (
-      <ProfilePage
-        user={user}
-      />
+      <ProfilePage user={user} />
     );
   }
 

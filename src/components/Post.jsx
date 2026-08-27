@@ -191,6 +191,20 @@ export default function Post({
     setImageFailed(false);
   }, [imageUrl]);
 
+  useEffect(() => {
+    try {
+      const savedItems = JSON.parse(
+        window.localStorage.getItem("qyvra_bookmarks") || "[]"
+      );
+      setSaved(
+        Array.isArray(savedItems) &&
+          savedItems.some((item) => item.bookmarkKey === bookmarkKey)
+      );
+    } catch {
+      setSaved(false);
+    }
+  }, [bookmarkKey]);
+
   function handleLike() {
     setLiked((current) => {
       const next = !current;
@@ -319,6 +333,38 @@ export default function Post({
       window.setTimeout(() => {
         setShared(false);
       }, 1600);
+  }
+
+  function toggleSave() {
+    try {
+      const current = JSON.parse(
+        window.localStorage.getItem("qyvra_bookmarks") || "[]"
+      );
+      const list = Array.isArray(current) ? current : [];
+      const exists = list.some((item) => item.bookmarkKey === bookmarkKey);
+      const next = exists
+        ? list.filter((item) => item.bookmarkKey !== bookmarkKey)
+        : [
+            ...list,
+            {
+              bookmarkKey,
+              name,
+              handle,
+              avatarUrl,
+              text: text || "",
+              imageUrl: imageUrl || "",
+              time: time || "",
+              likes: Number(likes || 0),
+              replies: Number(replies || 0),
+              reposts: Number(reposts || 0),
+            },
+          ];
+      window.localStorage.setItem("qyvra_bookmarks", JSON.stringify(next));
+      setSaved(!exists);
+      window.dispatchEvent(new Event("qyvra:bookmark-changed"));
+    } catch {
+      setSaved(false);
+    }
   }
 
   function closeMenu() {
@@ -482,6 +528,17 @@ export default function Post({
               ↻
             </span>
             <span>{displayedReposts}</span>
+          </button>
+
+          <button
+            type="button"
+            className={saved ? "post-action saved" : "post-action"}
+            onClick={toggleSave}
+            aria-label={saved ? "Remove saved post" : "Save post"}
+            aria-pressed={saved}
+          >
+            <span className="post-action-icon">{saved ? "◆" : "◇"}</span>
+            <span>{saved ? "Saved" : "Save"}</span>
           </button>
 
           <button

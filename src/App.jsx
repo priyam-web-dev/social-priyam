@@ -11,7 +11,6 @@ import { navigation } from "./appData";
 import Avatar from "./components/Avatar";
 import ThemeButton from "./components/ThemeButton";
 import CreateModal from "./components/CreateModal";
-import RightRail from "./components/RightRail";
 import AuthScreen from "./components/AuthScreen";
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
@@ -40,37 +39,150 @@ function QyvraMark() {
   return <span className="qyvra-mark">Q</span>;
 }
 
-function HeaderNavigation() {
-  return (
-    <nav className="header-navigation" aria-label="Primary navigation">
-      {navigation.map((item) => (
-        <NavLink
-          key={item.path}
-          to={item.path}
-          end={item.path === "/"}
-          className={({ isActive }) =>
-            isActive ? "active" : ""
-          }
-        >
-          <span className="header-navigation-icon" aria-hidden="true">
-            {item.icon}
-          </span>
-          <span>{item.label}</span>
-        </NavLink>
-      ))}
+const primaryNav = [
+  ...navigation,
+  { label: "Saved", path: "/saved", icon: "◇" },
+];
 
-      <NavLink
-        to="/saved"
-        className={({ isActive }) =>
-          isActive ? "active" : ""
-        }
-      >
-        <span className="header-navigation-icon" aria-hidden="true">
-          ◇
-        </span>
-        <span>Saved</span>
-      </NavLink>
-    </nav>
+function CommandPalette({ open, onClose, onCreate }) {
+  const navigate = useNavigate();
+  const inputRef = useRef(null);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const items = useMemo(() => {
+    return [
+      {
+        id: "create",
+        label: "Create post",
+        description: "Share a thought, photo or moment",
+        icon: "+",
+        run: onCreate,
+      },
+      ...primaryNav.map((item) => ({
+        id: item.path,
+        label: item.label,
+        description: item.path === "/" ? "Your home feed" : `Open ${item.label.toLowerCase()}`,
+        icon: item.icon,
+        run: () => navigate(item.path),
+      })),
+    ];
+  }, [navigate, onCreate]);
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return items;
+    return items.filter((item) =>
+      `${item.label} ${item.description}`.toLowerCase().includes(term)
+    );
+  }, [items, query]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    setQuery("");
+    setActiveIndex(0);
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 20);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+
+  useEffect(() => {
+    if (activeIndex >= filtered.length) setActiveIndex(0);
+  }, [activeIndex, filtered.length]);
+
+  if (!open) return null;
+
+  const runItem = (item) => {
+    if (!item) return;
+    onClose();
+    item.run();
+  };
+
+  return (
+    <div
+      className="command-palette-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section className="command-palette" role="dialog" aria-modal="true">
+        <div className="command-palette-head">
+          <div>
+            <span className="eyebrow">QUICK NAVIGATION</span>
+            <h2>Where next?</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close">×</button>
+        </div>
+
+        <label className="command-palette-search-wrap">
+          <span aria-hidden="true">⌕</span>
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            placeholder="Search QYVRA"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActiveIndex(0);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                onClose();
+              } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setActiveIndex((index) =>
+                  filtered.length ? (index + 1) % filtered.length : 0
+                );
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setActiveIndex((index) =>
+                  filtered.length
+                    ? (index - 1 + filtered.length) % filtered.length
+                    : 0
+                );
+              } else if (event.key === "Enter") {
+                event.preventDefault();
+                runItem(filtered[activeIndex]);
+              }
+            }}
+          />
+          <kbd>ESC</kbd>
+        </label>
+
+        <div className="command-palette-list">
+          {filtered.length ? (
+            filtered.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`command-item ${index === activeIndex ? "active" : ""}`}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => runItem(item)}
+              >
+                <span className="command-item-icon">{item.icon}</span>
+                <span className="command-item-copy">
+                  <strong>{item.label}</strong>
+                  <small>{item.description}</small>
+                </span>
+                <span className="command-item-arrow">↵</span>
+              </button>
+            ))
+          ) : (
+            <div className="command-empty">
+              <strong>No matches.</strong>
+              <span>Try a page or action.</span>
+            </div>
+          )}
+        </div>
+
+        <div className="command-palette-footer">
+          <span>↑↓ move</span>
+          <span>↵ open</span>
+          <span>esc close</span>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -96,22 +208,59 @@ function SavedPage() {
 
   return (
     <section className="saved-page">
-      <div className="page-intro new-page-intro">
+      <div className="section-kicker-row">
         <span className="eyebrow">YOUR LIBRARY</span>
-        <h1>Saved for later.</h1>
-        <p>Keep the posts worth coming back to.</p>
+        <span className="section-index">01</span>
+      </div>
+      <div className="page-hero-line">
+        <div>
+          <h1>Worth keeping.</h1>
+          <p>Posts you chose not to lose in the scroll.</p>
+        </div>
+        <span className="page-hero-mark">◇</span>
       </div>
 
       {items.length === 0 ? (
         <div className="empty-product-state">
           <span className="empty-product-icon">◇</span>
-          <strong>Nothing saved yet.</strong>
-          <span>Save a post and it will live here.</span>
+          <strong>Your shelf is empty.</strong>
+          <span>Save a post and it will stay here for you.</span>
         </div>
       ) : (
         <div className="saved-feed">
           {items.map((item) => (
-            <PostFromSaved key={item.bookmarkKey} item={item} />
+            <article className="saved-post-card" key={item.bookmarkKey}>
+              <div className="saved-post-label">SAVED</div>
+              <div className="saved-post-body">
+                <div className="saved-post-author">
+                  <Avatar
+                    name={item.name || "User"}
+                    src={item.avatarUrl || undefined}
+                  />
+                  <div>
+                    <strong>{item.name || "User"}</strong>
+                    <span>@{item.handle || "user"}</span>
+                  </div>
+                  <time>{item.time || ""}</time>
+                </div>
+                {item.text && <p>{item.text}</p>}
+                {item.imageUrl && (
+                  <div className="saved-post-media">
+                    <img
+                      src={item.imageUrl}
+                      alt="Saved post"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                )}
+                <div className="saved-post-meta">
+                  <span>♡ {item.likes || 0}</span>
+                  <span>○ {item.replies || 0}</span>
+                  <span>↻ {item.reposts || 0}</span>
+                </div>
+              </div>
+            </article>
           ))}
         </div>
       )}
@@ -119,238 +268,52 @@ function SavedPage() {
   );
 }
 
-function PostFromSaved({ item }) {
+function PulseRail() {
   return (
-    <article className="saved-post-card">
-      <div className="saved-post-label">SAVED</div>
-      <div className="saved-post-body">
-        <div className="saved-post-author">
-          <Avatar name={item.name || "User"} src={item.avatarUrl || undefined} />
-          <div>
-            <strong>{item.name || "User"}</strong>
-            <span>@{item.handle || "user"}</span>
-          </div>
-          <time>{item.time || ""}</time>
+    <aside className="pulse-rail">
+      <section className="pulse-block pulse-primary">
+        <div className="pulse-block-head">
+          <span>DISCOVER</span>
+          <span>01</span>
         </div>
+        <h2>Find your people.</h2>
+        <p>Follow conversations, not just accounts.</p>
+        <NavLink className="pulse-link" to="/explore">
+          Explore QYVRA <span>→</span>
+        </NavLink>
+      </section>
 
-        {item.text && <p>{item.text}</p>}
-        {item.imageUrl && (
-          <div className="saved-post-media">
-            <img src={item.imageUrl} alt="Saved post" loading="lazy" decoding="async" />
-          </div>
-        )}
-
-        <div className="saved-post-meta">
-          <span>♡ {item.likes || 0}</span>
-          <span>○ {item.replies || 0}</span>
-          <span>↻ {item.reposts || 0}</span>
+      <section className="pulse-block">
+        <div className="pulse-block-head">
+          <span>WHAT'S MOVING</span>
+          <span>02</span>
         </div>
-      </div>
-    </article>
-  );
-}
-
-function CommandPalette({ open, onClose, onCreate }) {
-  const navigate = useNavigate();
-  const inputRef = useRef(null);
-  const [query, setQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const items = useMemo(() => {
-    const pageItems = navigation.map((item) => ({
-      id: item.path,
-      label: item.label,
-      description:
-        item.path === "/"
-          ? "Open your feed"
-          : `Open ${item.label.toLowerCase()}`,
-      icon: item.icon,
-      run: () => navigate(item.path),
-    }));
-
-    return [
-      {
-        id: "create",
-        label: "Create a post",
-        description: "Share something with your people",
-        icon: "+",
-        run: onCreate,
-      },
-      {
-        id: "saved",
-        label: "Saved",
-        description: "Open your saved posts",
-        icon: "◇",
-        run: () => navigate("/saved"),
-      },
-      ...pageItems,
-    ];
-  }, [navigate, onCreate]);
-
-  const filtered = useMemo(() => {
-    const value = query.trim().toLowerCase();
-    if (!value) return items;
-    return items.filter((item) =>
-      `${item.label} ${item.description}`.toLowerCase().includes(value)
-    );
-  }, [items, query]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    setQuery("");
-    setActiveIndex(0);
-    const timer = window.setTimeout(() => inputRef.current?.focus(), 30);
-    return () => window.clearTimeout(timer);
-  }, [open]);
-
-  useEffect(() => {
-    if (activeIndex >= filtered.length) setActiveIndex(0);
-  }, [activeIndex, filtered.length]);
-
-  if (!open) return null;
-
-  function execute(item) {
-    onClose();
-    item?.run();
-  }
-
-  return (
-    <div
-      className="command-palette-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section className="command-palette" role="dialog" aria-modal="true">
-        <div className="command-palette-head">
-          <div>
-            <span className="eyebrow">QYVRA COMMANDS</span>
-            <h2>Go somewhere.</h2>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close">×</button>
+        <div className="pulse-topic">
+          <small>01 · TRENDING</small>
+          <strong>#technology</strong>
+          <span>1.8K posts</span>
         </div>
-
-        <div className="command-palette-search-wrap">
-          <span aria-hidden="true">⌕</span>
-          <input
-            ref={inputRef}
-            type="search"
-            value={query}
-            placeholder="Search pages and actions"
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setActiveIndex(0);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.preventDefault();
-                onClose();
-              } else if (event.key === "ArrowDown") {
-                event.preventDefault();
-                setActiveIndex((current) =>
-                  filtered.length ? (current + 1) % filtered.length : 0
-                );
-              } else if (event.key === "ArrowUp") {
-                event.preventDefault();
-                setActiveIndex((current) =>
-                  filtered.length
-                    ? (current - 1 + filtered.length) % filtered.length
-                    : 0
-                );
-              } else if (event.key === "Enter") {
-                event.preventDefault();
-                execute(filtered[activeIndex]);
-              }
-            }}
-          />
-          <kbd>ESC</kbd>
+        <div className="pulse-topic">
+          <small>02 · TRENDING</small>
+          <strong>#design</strong>
+          <span>940 posts</span>
         </div>
-
-        <div className="command-palette-list">
-          {filtered.length ? (
-            filtered.map((item, index) => (
-              <button
-                type="button"
-                key={item.id}
-                className={`command-item ${index === activeIndex ? "active" : ""}`}
-                onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => execute(item)}
-              >
-                <span className="command-item-icon">{item.icon}</span>
-                <span className="command-item-copy">
-                  <strong>{item.label}</strong>
-                  <small>{item.description}</small>
-                </span>
-                <span className="command-item-arrow">↵</span>
-              </button>
-            ))
-          ) : (
-            <div className="command-empty">
-              <strong>No matches.</strong>
-              <span>Try a page name or action.</span>
-            </div>
-          )}
-        </div>
-
-        <div className="command-palette-footer">
-          <span>↑↓ move</span>
-          <span>↵ open</span>
-          <span>esc close</span>
+        <div className="pulse-topic">
+          <small>03 · TRENDING</small>
+          <strong>#music</strong>
+          <span>782 posts</span>
         </div>
       </section>
-    </div>
-  );
-}
 
-function WorkspaceNav({ onCreate, user, onLogout }) {
-  return (
-    <aside className="workspace-nav" aria-label="Quick actions">
-      <div className="workspace-rail-stack">
-        <button
-          type="button"
-          className="workspace-rail-create"
-          onClick={onCreate}
-          aria-label="Create a post"
-          title="Create a post"
-        >
-          +
-        </button>
+      <section className="pulse-block pulse-note">
+        <div className="pulse-block-head">
+          <span>QYVRA NOTE</span>
+          <span>03</span>
+        </div>
+        <p>A small place for people, ideas and whatever happens between them.</p>
+      </section>
 
-        <NavLink
-          to="/saved"
-          className={({ isActive }) =>
-            `workspace-rail-button ${isActive ? "active" : ""}`
-          }
-          aria-label="Saved"
-          title="Saved"
-        >
-          ◇
-        </NavLink>
-
-        <NavLink
-          to="/profile"
-          className={({ isActive }) =>
-            `workspace-rail-avatar ${isActive ? "active" : ""}`
-          }
-          aria-label="Profile"
-          title="Profile"
-        >
-          <Avatar name={getDisplayName(user)} size="sm" />
-        </NavLink>
-      </div>
-
-      <div className="workspace-rail-bottom">
-        <button
-          type="button"
-          className="workspace-rail-button workspace-rail-logout"
-          onClick={onLogout}
-          aria-label="Log out"
-          title="Log out"
-        >
-          ↗
-        </button>
-      </div>
+      <div className="pulse-footer">Made for conversations.v1.0</div>
     </aside>
   );
 }
@@ -364,15 +327,16 @@ function AppShell({ user, onLogout }) {
   const displayName = getDisplayName(user);
 
   const pageMeta = {
-    "/": ["HOME", "Your feed"],
+    "/": ["HOME", "Your space"],
     "/explore": ["EXPLORE", "Find your corner"],
-    "/messages": ["INBOX", "Your conversations"],
-    "/notifications": ["ACTIVITY", "What changed"],
-    "/profile": ["PROFILE", "Your corner"],
+    "/messages": ["MESSAGES", "Stay in touch"],
+    "/notifications": ["ACTIVITY", "See what changed"],
+    "/profile": ["PROFILE", "Make it yours"],
     "/saved": ["SAVED", "Worth returning to"],
   };
 
-  const [eyebrow, title] = pageMeta[location.pathname] || ["QYVRA", "Stay awhile."];
+  const [eyebrow, title] =
+    pageMeta[location.pathname] || ["QYVRA", "Stay awhile."];
 
   useEffect(() => {
     setCreateOpen(false);
@@ -382,8 +346,9 @@ function AppShell({ user, onLogout }) {
 
   useEffect(() => {
     function onScroll() {
-      setShowTopButton(window.scrollY > 520);
+      setShowTopButton(window.scrollY > 560);
     }
+
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -416,88 +381,126 @@ function AppShell({ user, onLogout }) {
   }
 
   return (
-    <div className="app-shell product-shell">
-      <header className="topbar product-topbar">
-        <button type="button" className="wordmark" onClick={() => navigate("/")}>
+    <div className="app-shell qyvra-product">
+      <header className="qyvra-header">
+        <button
+          type="button"
+          className="qyvra-brand"
+          onClick={() => navigate("/")}
+          aria-label="QYVRA home"
+        >
           <QyvraMark />
           <span>QYVRA</span>
         </button>
 
-        <HeaderNavigation />
+        <nav className="qyvra-header-nav" aria-label="Primary navigation">
+          {primaryNav.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === "/"}
+              className={({ isActive }) =>
+                isActive ? "active" : ""
+              }
+            >
+              <span aria-hidden="true">{item.icon}</span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
 
-        <button
-          type="button"
-          className="global-search"
-          onClick={() => setCommandOpen(true)}
-          aria-label="Open QYVRA search"
-        >
-          <span>⌕</span>
-          <span>Search people, posts and topics</span>
-          <kbd>⌘ K</kbd>
-        </button>
-
-        <div className="topbar-actions">
-          <button type="button" className="top-create" onClick={openCreate}>
-            + Create
+        <div className="qyvra-header-actions">
+          <button
+            type="button"
+            className="header-search"
+            onClick={() => setCommandOpen(true)}
+          >
+            <span>⌕</span>
+            <span className="header-search-text">Search QYVRA</span>
+            <kbd>⌘ K</kbd>
           </button>
           <ThemeButton />
           <button
             type="button"
-            className="profile-trigger"
+            className="header-profile"
             onClick={() => navigate("/profile")}
-            aria-label="Open profile"
           >
-            <Avatar name={displayName} size="sm" />
+            <Avatar
+              name={displayName}
+              size="sm"
+            />
             <span>{displayName}</span>
           </button>
         </div>
       </header>
 
-      <div className="product-layout">
-        <WorkspaceNav onCreate={openCreate} user={user} onLogout={onLogout} />
-
-        <main className="product-main">
-          <div className="workspace-heading">
+      <div className="qyvra-page">
+        <main className="qyvra-main">
+          <div className="page-heading">
             <div>
               <span className="eyebrow">{eyebrow}</span>
               <h1>{title}</h1>
             </div>
-            <span className="workspace-status">Online</span>
+            <button
+              type="button"
+              className="page-create-inline"
+              onClick={openCreate}
+            >
+              <span>+</span>
+              Create
+            </button>
           </div>
 
-          <div className="product-content-grid">
-            <div className="main-column">
+          <div className="qyvra-content-grid">
+            <section className="qyvra-content-main">
               <Routes>
                 <Route path="/" element={<Home onCreate={openCreate} />} />
                 <Route path="/explore" element={<Explore />} />
                 <Route path="/messages" element={<Messages />} />
-                <Route path="/notifications" element={<BasicPage type="notifications" user={user} />} />
-                <Route path="/profile" element={<BasicPage type="profile" user={user} />} />
+                <Route
+                  path="/notifications"
+                  element={<BasicPage type="notifications" user={user} />}
+                />
+                <Route
+                  path="/profile"
+                  element={<BasicPage type="profile" user={user} />}
+                />
                 <Route path="/saved" element={<SavedPage />} />
                 <Route path="/create" element={<Navigate to="/" replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-            </div>
-            <div className="product-right-rail">
-              <RightRail />
-            </div>
+            </section>
+
+            <PulseRail />
           </div>
         </main>
       </div>
 
-      <nav className="mobile-nav" aria-label="Mobile navigation">
+      <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
         {navigation.slice(0, 4).map((item) => (
-          <NavLink key={item.path} to={item.path} end={item.path === "/"}>
-            <span aria-hidden="true">{item.icon}</span>
-            <small>{item.label === "Notifications" ? "Alerts" : item.label}</small>
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.path === "/"}
+          >
+            <span>{item.icon}</span>
+            <small>{item.label === "Notifications" ? "Activity" : item.label}</small>
           </NavLink>
         ))}
-        <NavLink to="/saved">
-          <span aria-hidden="true">◇</span>
-          <small>Saved</small>
+        <NavLink to="/profile">
+          <span>◉</span>
+          <small>Profile</small>
         </NavLink>
-        <button type="button" onClick={openCreate} aria-label="Create post">+</button>
       </nav>
+
+      <button
+        type="button"
+        className="mobile-create"
+        onClick={openCreate}
+        aria-label="Create post"
+      >
+        +
+      </button>
 
       {showTopButton && (
         <button
@@ -516,7 +519,9 @@ function AppShell({ user, onLogout }) {
         onCreate={openCreate}
       />
 
-      {createOpen && <CreateModal onClose={() => setCreateOpen(false)} />}
+      {createOpen && (
+        <CreateModal onClose={() => setCreateOpen(false)} />
+      )}
     </div>
   );
 }
