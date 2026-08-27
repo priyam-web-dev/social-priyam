@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  NavLink,
   Navigate,
+  NavLink,
   Route,
   Routes,
   useLocation,
@@ -13,7 +13,6 @@ import ThemeButton from "./components/ThemeButton";
 import CreateModal from "./components/CreateModal";
 import RightRail from "./components/RightRail";
 import AuthScreen from "./components/AuthScreen";
-import Post from "./components/Post";
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
 import Messages from "./pages/Messages";
@@ -37,153 +36,82 @@ function getUsername(user) {
   );
 }
 
-function QyvraMark({ className = "" }) {
+function QyvraMark() {
+  return <span className="qyvra-mark">Q</span>;
+}
+
+function HeaderNavigation() {
   return (
-    <span className={`qyvra-mark ${className}`.trim()}>
-      Q
-    </span>
+    <nav className="header-navigation" aria-label="Primary navigation">
+      {navigation.map((item) => (
+        <NavLink
+          key={item.path}
+          to={item.path}
+          end={item.path === "/"}
+          className={({ isActive }) =>
+            isActive ? "active" : ""
+          }
+        >
+          <span className="header-navigation-icon" aria-hidden="true">
+            {item.icon}
+          </span>
+          <span>{item.label}</span>
+        </NavLink>
+      ))}
+
+      <NavLink
+        to="/saved"
+        className={({ isActive }) =>
+          isActive ? "active" : ""
+        }
+      >
+        <span className="header-navigation-icon" aria-hidden="true">
+          ◇
+        </span>
+        <span>Saved</span>
+      </NavLink>
+    </nav>
   );
 }
 
-const extraNavigation = {
-  label: "Bookmarks",
-  path: "/bookmarks",
-  icon: "▾",
-};
-
-function getNavigationItems() {
-  const items = Array.isArray(navigation)
-    ? [...navigation]
-    : [];
-
-  const alreadyExists = items.some(
-    (item) => item.path === extraNavigation.path
-  );
-
-  if (!alreadyExists) {
-    items.push(extraNavigation);
-  }
-
-  return items;
-}
-
-function readBookmarks() {
-  try {
-    const raw = window.localStorage.getItem(
-      "qyvra_bookmarks"
-    );
-
-    const parsed = raw ? JSON.parse(raw) : [];
-
-    return Array.isArray(parsed)
-      ? parsed
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function BookmarksPage() {
-  const [bookmarks, setBookmarks] = useState(readBookmarks);
+function SavedPage() {
+  const [items, setItems] = useState([]);
 
   useEffect(() => {
-    function refreshBookmarks() {
-      setBookmarks(readBookmarks());
-    }
-
-    function handleStorage(event) {
-      if (event.key === "qyvra_bookmarks") {
-        refreshBookmarks();
+    function read() {
+      try {
+        const value = JSON.parse(
+          window.localStorage.getItem("qyvra_bookmarks") || "[]"
+        );
+        setItems(Array.isArray(value) ? value : []);
+      } catch {
+        setItems([]);
       }
     }
 
-    window.addEventListener(
-      "qyvra:bookmark-changed",
-      refreshBookmarks
-    );
-    window.addEventListener(
-      "storage",
-      handleStorage
-    );
-
-    return () => {
-      window.removeEventListener(
-        "qyvra:bookmark-changed",
-        refreshBookmarks
-      );
-      window.removeEventListener(
-        "storage",
-        handleStorage
-      );
-    };
+    read();
+    window.addEventListener("qyvra:bookmark-changed", read);
+    return () => window.removeEventListener("qyvra:bookmark-changed", read);
   }, []);
 
-  function clearBookmarks() {
-    try {
-      window.localStorage.removeItem(
-        "qyvra_bookmarks"
-      );
-    } catch {
-      // Ignore local storage failures.
-    }
-
-    setBookmarks([]);
-    window.dispatchEvent(
-      new Event("qyvra:bookmark-changed")
-    );
-  }
-
   return (
-    <section className="qyvra-bookmarks-page">
-      <div className="qyvra-bookmarks-head">
-        <div>
-          <span className="page-kicker">
-            YOUR LIBRARY
-          </span>
-          <h1>Bookmarks</h1>
-          <p>
-            Keep the posts worth coming back to.
-          </p>
-        </div>
-
-        {bookmarks.length > 0 && (
-          <button
-            type="button"
-            className="qyvra-bookmarks-clear"
-            onClick={clearBookmarks}
-          >
-            Clear all
-          </button>
-        )}
+    <section className="saved-page">
+      <div className="page-intro new-page-intro">
+        <span className="eyebrow">YOUR LIBRARY</span>
+        <h1>Saved for later.</h1>
+        <p>Keep the posts worth coming back to.</p>
       </div>
 
-      {bookmarks.length === 0 ? (
-        <div className="qyvra-empty-bookmarks">
+      {items.length === 0 ? (
+        <div className="empty-product-state">
+          <span className="empty-product-icon">◇</span>
           <strong>Nothing saved yet.</strong>
-          <span>
-            Tap the bookmark icon on a post and it
-            will stay here for you.
-          </span>
+          <span>Save a post and it will live here.</span>
         </div>
       ) : (
-        <div className="qyvra-bookmark-list">
-          {bookmarks.map((post) => (
-            <div
-              className="qyvra-bookmark-card"
-              key={post.bookmarkKey}
-            >
-              <Post
-                name={post.name}
-                handle={post.handle}
-                avatarUrl={post.avatarUrl}
-                text={post.text}
-                imageUrl={post.imageUrl}
-                time={post.time}
-                replies={post.replies}
-                likes={post.likes}
-                reposts={post.reposts}
-              />
-            </div>
+        <div className="saved-feed">
+          {items.map((item) => (
+            <PostFromSaved key={item.bookmarkKey} item={item} />
           ))}
         </div>
       )}
@@ -191,238 +119,239 @@ function BookmarksPage() {
   );
 }
 
-function CommandPalette({
-  open,
-  onClose,
-  onCreate,
-}) {
-  const navigate = useNavigate();
-  const [query, setQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] =
-    useState(0);
+function PostFromSaved({ item }) {
+  return (
+    <article className="saved-post-card">
+      <div className="saved-post-label">SAVED</div>
+      <div className="saved-post-body">
+        <div className="saved-post-author">
+          <Avatar name={item.name || "User"} src={item.avatarUrl || undefined} />
+          <div>
+            <strong>{item.name || "User"}</strong>
+            <span>@{item.handle || "user"}</span>
+          </div>
+          <time>{item.time || ""}</time>
+        </div>
 
-  const items = useMemo(
-    () => [
-      {
-        label: "Go home",
-        hint: "Open your main feed",
-        icon: "⌂",
-        key: "G H",
-        action: () => navigate("/"),
-      },
-      {
-        label: "Explore",
-        hint: "Find people, topics and posts",
-        icon: "⌕",
-        key: "G E",
-        action: () => navigate("/explore"),
-      },
-      {
-        label: "Messages",
-        hint: "Continue a conversation",
-        icon: "○",
-        key: "G M",
-        action: () => navigate("/messages"),
-      },
-      {
-        label: "Notifications",
-        hint: "See what's happened",
-        icon: "◇",
-        key: "G N",
-        action: () => navigate("/notifications"),
-      },
-      {
-        label: "Profile",
-        hint: "Open your profile",
-        icon: "◎",
-        key: "G P",
-        action: () => navigate("/profile"),
-      },
-      {
-        label: "Bookmarks",
-        hint: "Open saved posts",
-        icon: "⌄",
-        key: "G B",
-        action: () => navigate("/bookmarks"),
-      },
-      {
-        label: "Create post",
-        hint: "Share something new",
-        icon: "+",
-        key: "N",
-        action: onCreate,
-      },
-    ],
-    [navigate, onCreate]
+        {item.text && <p>{item.text}</p>}
+        {item.imageUrl && (
+          <div className="saved-post-media">
+            <img src={item.imageUrl} alt="Saved post" loading="lazy" decoding="async" />
+          </div>
+        )}
+
+        <div className="saved-post-meta">
+          <span>♡ {item.likes || 0}</span>
+          <span>○ {item.replies || 0}</span>
+          <span>↻ {item.reposts || 0}</span>
+        </div>
+      </div>
+    </article>
   );
+}
 
-  const filteredItems = items.filter((item) => {
-    const haystack = `${item.label} ${item.hint}`.toLowerCase();
-    return haystack.includes(query.trim().toLowerCase());
-  });
+function CommandPalette({ open, onClose, onCreate }) {
+  const navigate = useNavigate();
+  const inputRef = useRef(null);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const items = useMemo(() => {
+    const pageItems = navigation.map((item) => ({
+      id: item.path,
+      label: item.label,
+      description:
+        item.path === "/"
+          ? "Open your feed"
+          : `Open ${item.label.toLowerCase()}`,
+      icon: item.icon,
+      run: () => navigate(item.path),
+    }));
+
+    return [
+      {
+        id: "create",
+        label: "Create a post",
+        description: "Share something with your people",
+        icon: "+",
+        run: onCreate,
+      },
+      {
+        id: "saved",
+        label: "Saved",
+        description: "Open your saved posts",
+        icon: "◇",
+        run: () => navigate("/saved"),
+      },
+      ...pageItems,
+    ];
+  }, [navigate, onCreate]);
+
+  const filtered = useMemo(() => {
+    const value = query.trim().toLowerCase();
+    if (!value) return items;
+    return items.filter((item) =>
+      `${item.label} ${item.description}`.toLowerCase().includes(value)
+    );
+  }, [items, query]);
 
   useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
-
+    if (!open) return undefined;
     setQuery("");
-    setSelectedIndex(0);
-
-    const timer = window.setTimeout(() => {
-      document
-        .querySelector(".qyvra-command-search input")
-        ?.focus();
-    }, 0);
-
+    setActiveIndex(0);
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 30);
     return () => window.clearTimeout(timer);
   }, [open]);
 
   useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
+    if (activeIndex >= filtered.length) setActiveIndex(0);
+  }, [activeIndex, filtered.length]);
 
-  useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
+  if (!open) return null;
 
-    function handleKeyDown(event) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setSelectedIndex((current) =>
-          Math.min(
-            current + 1,
-            Math.max(filteredItems.length - 1, 0)
-          )
-        );
-        return;
-      }
-
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setSelectedIndex((current) =>
-          Math.max(current - 1, 0)
-        );
-        return;
-      }
-
-      if (
-        event.key === "Enter" &&
-        filteredItems[selectedIndex]
-      ) {
-        event.preventDefault();
-        filteredItems[selectedIndex].action();
-        onClose();
-      }
-    }
-
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
-
-    return () =>
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
-  }, [
-    filteredItems,
-    onClose,
-    open,
-    selectedIndex,
-  ]);
-
-  if (!open) {
-    return null;
+  function execute(item) {
+    onClose();
+    item?.run();
   }
 
   return (
     <div
-      className="qyvra-command-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
+      className="command-palette-backdrop"
       role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
-      <section
-        className="qyvra-command"
-        role="dialog"
-        aria-modal="true"
-        aria-label="QYVRA command palette"
-      >
-        <div className="qyvra-command-search">
-          <span aria-hidden="true">⌕</span>
-          <input
-            type="text"
-            value={query}
-            onChange={(event) =>
-              setQuery(event.target.value)
-            }
-            placeholder="Search QYVRA"
-            aria-label="Search commands"
-            autoComplete="off"
-          />
-          <span className="qyvra-command-key">
-            ESC
-          </span>
+      <section className="command-palette" role="dialog" aria-modal="true">
+        <div className="command-palette-head">
+          <div>
+            <span className="eyebrow">QYVRA COMMANDS</span>
+            <h2>Go somewhere.</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close">×</button>
         </div>
 
-        <div className="qyvra-command-list">
-          <div className="qyvra-command-group-label">
-            Quick actions
-          </div>
+        <div className="command-palette-search-wrap">
+          <span aria-hidden="true">⌕</span>
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            placeholder="Search pages and actions"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActiveIndex(0);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                onClose();
+              } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setActiveIndex((current) =>
+                  filtered.length ? (current + 1) % filtered.length : 0
+                );
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setActiveIndex((current) =>
+                  filtered.length
+                    ? (current - 1 + filtered.length) % filtered.length
+                    : 0
+                );
+              } else if (event.key === "Enter") {
+                event.preventDefault();
+                execute(filtered[activeIndex]);
+              }
+            }}
+          />
+          <kbd>ESC</kbd>
+        </div>
 
-          {filteredItems.length === 0 ? (
-            <div className="qyvra-command-empty">
-              Nothing matches “{query}”.
-            </div>
-          ) : (
-            filteredItems.map((item, index) => (
+        <div className="command-palette-list">
+          {filtered.length ? (
+            filtered.map((item, index) => (
               <button
                 type="button"
-                className={
-                  index === selectedIndex
-                    ? "qyvra-command-item selected"
-                    : "qyvra-command-item"
-                }
-                key={item.label}
-                onMouseEnter={() =>
-                  setSelectedIndex(index)
-                }
-                onClick={() => {
-                  item.action();
-                  onClose();
-                }}
+                key={item.id}
+                className={`command-item ${index === activeIndex ? "active" : ""}`}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => execute(item)}
               >
-                <span
-                  className="qyvra-command-icon"
-                  aria-hidden="true"
-                >
-                  {item.icon}
-                </span>
-                <span className="qyvra-command-copy">
+                <span className="command-item-icon">{item.icon}</span>
+                <span className="command-item-copy">
                   <strong>{item.label}</strong>
-                  <small>{item.hint}</small>
+                  <small>{item.description}</small>
                 </span>
-                <span className="qyvra-command-key">
-                  {item.key}
-                </span>
+                <span className="command-item-arrow">↵</span>
               </button>
             ))
+          ) : (
+            <div className="command-empty">
+              <strong>No matches.</strong>
+              <span>Try a page name or action.</span>
+            </div>
           )}
+        </div>
+
+        <div className="command-palette-footer">
+          <span>↑↓ move</span>
+          <span>↵ open</span>
+          <span>esc close</span>
         </div>
       </section>
     </div>
+  );
+}
+
+function WorkspaceNav({ onCreate, user, onLogout }) {
+  return (
+    <aside className="workspace-nav" aria-label="Quick actions">
+      <div className="workspace-rail-stack">
+        <button
+          type="button"
+          className="workspace-rail-create"
+          onClick={onCreate}
+          aria-label="Create a post"
+          title="Create a post"
+        >
+          +
+        </button>
+
+        <NavLink
+          to="/saved"
+          className={({ isActive }) =>
+            `workspace-rail-button ${isActive ? "active" : ""}`
+          }
+          aria-label="Saved"
+          title="Saved"
+        >
+          ◇
+        </NavLink>
+
+        <NavLink
+          to="/profile"
+          className={({ isActive }) =>
+            `workspace-rail-avatar ${isActive ? "active" : ""}`
+          }
+          aria-label="Profile"
+          title="Profile"
+        >
+          <Avatar name={getDisplayName(user)} size="sm" />
+        </NavLink>
+      </div>
+
+      <div className="workspace-rail-bottom">
+        <button
+          type="button"
+          className="workspace-rail-button workspace-rail-logout"
+          onClick={onLogout}
+          aria-label="Log out"
+          title="Log out"
+        >
+          ↗
+        </button>
+      </div>
+    </aside>
   );
 }
 
@@ -430,14 +359,20 @@ function AppShell({ user, onLogout }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [createOpen, setCreateOpen] = useState(false);
-  const [commandOpen, setCommandOpen] =
-    useState(false);
-  const [showBackTop, setShowBackTop] =
-    useState(false);
-
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [showTopButton, setShowTopButton] = useState(false);
   const displayName = getDisplayName(user);
-  const username = getUsername(user);
-  const navItems = getNavigationItems();
+
+  const pageMeta = {
+    "/": ["HOME", "Your feed"],
+    "/explore": ["EXPLORE", "Find your corner"],
+    "/messages": ["INBOX", "Your conversations"],
+    "/notifications": ["ACTIVITY", "What changed"],
+    "/profile": ["PROFILE", "Your corner"],
+    "/saved": ["SAVED", "Worth returning to"],
+  };
+
+  const [eyebrow, title] = pageMeta[location.pathname] || ["QYVRA", "Stay awhile."];
 
   useEffect(() => {
     setCreateOpen(false);
@@ -446,52 +381,33 @@ function AppShell({ user, onLogout }) {
   }, [location.pathname]);
 
   useEffect(() => {
-    function handleKeyboard(event) {
-      const modifier = event.metaKey || event.ctrlKey;
-      const key = event.key.toLowerCase();
+    function onScroll() {
+      setShowTopButton(window.scrollY > 520);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-      if (modifier && key === "k") {
+  useEffect(() => {
+    function onKeyDown(event) {
+      const modifier = event.metaKey || event.ctrlKey;
+      if (modifier && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setCommandOpen(true);
-        return;
       }
-
-      if (modifier && key === "n") {
+      if (modifier && event.key.toLowerCase() === "n") {
         event.preventDefault();
         setCreateOpen(true);
-        return;
       }
-
       if (event.key === "Escape") {
-        setCreateOpen(false);
         setCommandOpen(false);
+        setCreateOpen(false);
       }
     }
 
-    function handleScroll() {
-      setShowBackTop(window.scrollY > 520);
-    }
-
-    window.addEventListener(
-      "keydown",
-      handleKeyboard
-    );
-    window.addEventListener(
-      "scroll",
-      handleScroll,
-      { passive: true }
-    );
-
-    return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyboard
-      );
-      window.removeEventListener(
-        "scroll",
-        handleScroll
-      );
-    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   function openCreate() {
@@ -499,224 +415,100 @@ function AppShell({ user, onLogout }) {
     setCreateOpen(true);
   }
 
-  function scrollToTop() {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  }
-
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <button
-          type="button"
-          className="wordmark"
-          onClick={() => navigate("/")}
-          aria-label="Go home"
-        >
+    <div className="app-shell product-shell">
+      <header className="topbar product-topbar">
+        <button type="button" className="wordmark" onClick={() => navigate("/")}>
           <QyvraMark />
-          <span>qyvra</span>
+          <span>QYVRA</span>
         </button>
 
-        <nav
-          className="top-primary-nav"
-          aria-label="Primary navigation"
+        <HeaderNavigation />
+
+        <button
+          type="button"
+          className="global-search"
+          onClick={() => setCommandOpen(true)}
+          aria-label="Open QYVRA search"
         >
-          {navItems
-            .filter(
-              (item) => item.path !== "/create"
-            )
-            .slice(0, 7)
-            .map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.path === "/"}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-        </nav>
+          <span>⌕</span>
+          <span>Search people, posts and topics</span>
+          <kbd>⌘ K</kbd>
+        </button>
 
         <div className="topbar-actions">
-          <button
-            type="button"
-            className="search-trigger"
-            onClick={() =>
-              setCommandOpen(true)
-            }
-            aria-label="Search QYVRA"
-          >
-            <span aria-hidden="true">⌕</span>
-            <span className="search-label">
-              Search
-            </span>
-            <kbd>⌘ K</kbd>
+          <button type="button" className="top-create" onClick={openCreate}>
+            + Create
           </button>
-
           <ThemeButton />
-
           <button
             type="button"
             className="profile-trigger"
             onClick={() => navigate("/profile")}
             aria-label="Open profile"
           >
-            <Avatar
-              name={displayName}
-              size="sm"
-            />
+            <Avatar name={displayName} size="sm" />
             <span>{displayName}</span>
           </button>
         </div>
       </header>
 
-      <div className="page-grid">
-        <aside className="sidebar">
-          <nav
-            className="side-nav"
-            aria-label="Main navigation"
-          >
-            {navItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.path === "/"}
-              >
-                <span>{item.icon}</span>
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+      <div className="product-layout">
+        <WorkspaceNav onCreate={openCreate} user={user} onLogout={onLogout} />
 
-          <button
-            type="button"
-            className="create-button"
-            onClick={openCreate}
-          >
-            + Create
-          </button>
+        <main className="product-main">
+          <div className="workspace-heading">
+            <div>
+              <span className="eyebrow">{eyebrow}</span>
+              <h1>{title}</h1>
+            </div>
+            <span className="workspace-status">Online</span>
+          </div>
 
-          <button
-            type="button"
-            className="account-card"
-            onClick={() => navigate("/profile")}
-          >
-            <Avatar name={displayName} />
-            <span>
-              <strong>{displayName}</strong>
-              <small>@{username}</small>
-            </span>
-            <b aria-hidden="true">•••</b>
-          </button>
-
-          <button
-            type="button"
-            className="account-logout"
-            onClick={onLogout}
-          >
-            Log out
-          </button>
-        </aside>
-
-        <main className="main-column">
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <Home onCreate={openCreate} />
-              }
-            />
-            <Route
-              path="/explore"
-              element={<Explore />}
-            />
-            <Route
-              path="/messages"
-              element={<Messages />}
-            />
-            <Route
-              path="/notifications"
-              element={
-                <BasicPage
-                  type="notifications"
-                  user={user}
-                />
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <BasicPage
-                  type="profile"
-                  user={user}
-                />
-              }
-            />
-            <Route
-              path="/bookmarks"
-              element={<BookmarksPage />}
-            />
-            <Route
-              path="/create"
-              element={<Navigate to="/" replace />}
-            />
-            <Route
-              path="*"
-              element={<Navigate to="/" replace />}
-            />
-          </Routes>
+          <div className="product-content-grid">
+            <div className="main-column">
+              <Routes>
+                <Route path="/" element={<Home onCreate={openCreate} />} />
+                <Route path="/explore" element={<Explore />} />
+                <Route path="/messages" element={<Messages />} />
+                <Route path="/notifications" element={<BasicPage type="notifications" user={user} />} />
+                <Route path="/profile" element={<BasicPage type="profile" user={user} />} />
+                <Route path="/saved" element={<SavedPage />} />
+                <Route path="/create" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
+            <div className="product-right-rail">
+              <RightRail />
+            </div>
+          </div>
         </main>
-
-        <RightRail />
       </div>
 
-      <nav
-        className="mobile-nav"
-        aria-label="Mobile navigation"
-      >
-        {navItems
-          .filter(
-            (item) => item.path !== "/bookmarks"
-          )
-          .slice(0, 4)
-          .map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === "/"}
-            >
-              <span>{item.icon}</span>
-              <small>
-                {item.label === "Notifications"
-                  ? "Alerts"
-                  : item.label}
-              </small>
-            </NavLink>
-          ))}
-
-        <button
-          type="button"
-          onClick={openCreate}
-          aria-label="Create post"
-        >
-          +
-        </button>
+      <nav className="mobile-nav" aria-label="Mobile navigation">
+        {navigation.slice(0, 4).map((item) => (
+          <NavLink key={item.path} to={item.path} end={item.path === "/"}>
+            <span aria-hidden="true">{item.icon}</span>
+            <small>{item.label === "Notifications" ? "Alerts" : item.label}</small>
+          </NavLink>
+        ))}
+        <NavLink to="/saved">
+          <span aria-hidden="true">◇</span>
+          <small>Saved</small>
+        </NavLink>
+        <button type="button" onClick={openCreate} aria-label="Create post">+</button>
       </nav>
 
-      <button
-        type="button"
-        className={
-          showBackTop
-            ? "qyvra-back-top visible"
-            : "qyvra-back-top"
-        }
-        onClick={scrollToTop}
-        aria-label="Back to top"
-      >
-        ↑
-      </button>
+      {showTopButton && (
+        <button
+          type="button"
+          className="scroll-top-button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Back to top"
+        >
+          ↑
+        </button>
+      )}
 
       <CommandPalette
         open={commandOpen}
@@ -724,24 +516,19 @@ function AppShell({ user, onLogout }) {
         onCreate={openCreate}
       />
 
-      {createOpen && (
-        <CreateModal
-          onClose={() => setCreateOpen(false)}
-        />
-      )}
+      {createOpen && <CreateModal onClose={() => setCreateOpen(false)} />}
     </div>
   );
 }
 
 export default function App() {
-  const { user, loading, isAuthenticated, signOut } =
-    useAuth();
+  const { user, loading, isAuthenticated, signOut } = useAuth();
 
   if (loading) {
     return (
       <div className="auth-loading">
         <div className="auth-loading-mark">Q</div>
-        <span>loading your space...</span>
+        <span>Getting your space ready...</span>
       </div>
     );
   }
@@ -750,10 +537,5 @@ export default function App() {
     return <AuthScreen />;
   }
 
-  return (
-    <AppShell
-      user={user}
-      onLogout={signOut}
-    />
-  );
+  return <AppShell user={user} onLogout={signOut} />;
 }
