@@ -11084,3 +11084,789 @@ body {
     animation: none !important;
   }
 }
+
+
+/* =========================================================
+   QYVRA CLEAN SOCIAL V3
+   Calm / premium social UI direction
+   Red is the brand signal, not the whole interface.
+   White = day / Black = night / SNEAKER = fixed type.
+========================================================= */
+
+:root {
+  --q3-red: #ff1f1f;
+  --q3-black: #000000;
+  --q3-white: #ffffff;
+  --q3-gray-1: #f6f6f6;
+  --q3-gray-2: #e7e7e7;
+  --q3-gray-3: #a3a3a3;
+  --q3-ink: #121212;
+  --q3-shadow: 0 1px 2px rgba(0,0,0,.05);
+
+  --accent: var(--q3-red) !important;
+  --accent-dark: #d91515 !important;
+  --accent-soft: #fff0f0 !important;
+  --bg: var(--q3-white) !important;
+  --surface: var(--q3-white) !important;
+  --surface-2: var(--q3-gray-1) !important;
+  --text: var(--q3-black) !important;
+  --muted: #6b6b6b !important;
+  --line: #dddddd !important;
+  --line-strong: #b9b9b9 !important;
+  --display-font: "SNEAKER", system-ui, sans-serif !important;
+  --body-font: "SNEAKER", system-ui, sans-serif !important;
+  --mono-font: "SNEAKER", system-ui, sans-serif !important;
+}
+
+:root[data-theme="dark"] {
+  --bg: var(--q3-black) !important;
+  --surface: #050505 !important;
+  --surface-2: #101010 !important;
+  --text: var(--q3-white) !important;
+  --muted: #a8a8a8 !important;
+  --line: #2a2a2a !important;
+  --line-strong: #4a4a4a !important;
+  --accent-soft: #220707 !important;
+  --q3-shadow: 0 1px 2px rgba(255,255,255,.03);
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+}
+
+body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* ---------- Header ---------- */
+.topbar {
+  height: 72px !important;
+  padding: 0 clamp(18px, 4vw, 56px) !important;
+  border-bottom: 1px solid var(--line) !important;
+  background: var(--bg) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.wordmark {
+  gap: 10px !important;
+  font-size: 21px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.045em !important;
+}
+
+.wordmark b {
+  width: 32px !important;
+  height: 32px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.wordmark:hover b,
+.wordmark:hover b:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ---------- Top navigation ---------- */
+.sidebar {
+  position: fixed !important;
+  inset: 0 0 auto 0 !important;
+  z-index: 90 !important;
+  width: 100% !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  padding: 0 !important;
+  display: block !important;
+  pointer-events: none !important;
+  background: transparent !important;
+}
+
+.side-nav {
+  position: absolute !important;
+  top: 0 !important;
+  left: 50% !important;
+  right: auto !important;
+  height: 72px !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  pointer-events: auto !important;
+  white-space: nowrap !important;
+}
+
+.side-nav a {
+  min-height: 38px !important;
+  padding: 0 13px !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: .01em !important;
+  transition: color .16s ease, background-color .16s ease !important;
+}
+
+.side-nav a span {
+  width: auto !important;
+  font-size: 12px !important;
+  opacity: .7 !important;
+}
+
+.side-nav a:hover {
+  transform: none !important;
+  border: 0 !important;
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+}
+
+.side-nav a.active {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--accent) !important;
+  box-shadow: none !important;
+}
+
+.sidebar .create-button {
+  position: absolute !important;
+  top: 16px !important;
+  right: clamp(18px, 4vw, 56px) !important;
+  width: 92px !important;
+  height: 40px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  pointer-events: auto !important;
+  animation: none !important;
+}
+
+.sidebar .create-button:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: none !important;
+  background: var(--accent-dark) !important;
+}
+
+.sidebar .account-card,
+.account-logout {
+  display: none !important;
+}
+
+/* ---------- Header controls ---------- */
+.topbar-actions {
+  gap: 7px !important;
+}
+
+.search-trigger,
+.plain-icon,
+.profile-trigger {
+  min-height: 38px !important;
+  height: 38px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 7px !important;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+.search-trigger {
+  width: 190px !important;
+  padding: 0 11px !important;
+  font-size: 11px !important;
+}
+
+.search-trigger:hover,
+.plain-icon:hover,
+.profile-trigger:hover {
+  transform: none !important;
+  border-color: var(--line-strong) !important;
+  background: var(--surface-2) !important;
+  box-shadow: none !important;
+}
+
+.profile-trigger {
+  padding: 3px 10px 3px 4px !important;
+  gap: 8px !important;
+  font-size: 11px !important;
+}
+
+/* ---------- Main shell ---------- */
+.page-grid {
+  width: min(1180px, calc(100% - 40px)) !important;
+  grid-template-columns: minmax(0, 720px) 280px !important;
+  justify-content: center !important;
+  gap: 48px !important;
+  padding-top: 32px !important;
+}
+
+.main-column {
+  min-width: 0 !important;
+  padding: 0 0 90px !important;
+}
+
+.right-rail {
+  padding-top: 2px !important;
+}
+
+/* ---------- Feed tabs ---------- */
+.feed-switcher {
+  height: 42px !important;
+  margin-bottom: 18px !important;
+  gap: 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+
+.feed-switch {
+  min-height: 42px !important;
+  padding: 0 15px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  color: var(--muted) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+.feed-switch:hover {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+.feed-switch.active {
+  color: var(--text) !important;
+}
+
+.feed-switch.active::after {
+  right: 15px !important;
+  bottom: -1px !important;
+  left: 15px !important;
+  height: 2px !important;
+  border-radius: 99px !important;
+  background: var(--accent) !important;
+}
+
+/* ---------- Composer ---------- */
+.composer {
+  margin-bottom: 8px !important;
+  padding: 14px 0 !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+  background: transparent !important;
+}
+
+.composer-input {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.composer-add {
+  width: 38px !important;
+  height: 38px !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.composer-add:hover {
+  transform: translateY(-1px) !important;
+  background: var(--accent-dark) !important;
+}
+
+/* ---------- Posts ---------- */
+.post-card {
+  gap: 12px !important;
+  padding: 22px 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+  background: transparent !important;
+}
+
+.post-card:hover {
+  background: transparent !important;
+}
+
+.post-body {
+  min-width: 0 !important;
+}
+
+.post-meta {
+  gap: 7px !important;
+  font-size: 11px !important;
+}
+
+.post-meta strong {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.post-meta > span {
+  font-size: 10px !important;
+}
+
+.post-more {
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 12px !important;
+}
+
+.post-text {
+  margin: 10px 0 13px !important;
+  max-width: 690px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.6 !important;
+}
+
+.post-image {
+  margin-top: 12px !important;
+  max-height: 600px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  background: var(--surface-2) !important;
+  box-shadow: none !important;
+}
+
+.post-image img {
+  max-height: 600px !important;
+}
+
+.post-image:hover img {
+  transform: scale(1.008) !important;
+}
+
+.post-actions {
+  margin-top: 10px !important;
+  gap: 2px !important;
+}
+
+.post-action {
+  min-height: 30px !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  font-size: 10px !important;
+}
+
+.post-action:hover {
+  background: var(--surface-2) !important;
+}
+
+/* Red is reserved for active interaction, not every interaction. */
+.post-action.active,
+.post-action.shared {
+  color: var(--accent) !important;
+}
+
+.post-action.reposted {
+  color: #2f7d4a !important;
+}
+
+/* ---------- Right rail ---------- */
+.right-rail .rail-section {
+  margin-bottom: 24px !important;
+  padding: 0 0 22px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.right-rail .rail-section:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.rail-heading h2 {
+  margin-bottom: 12px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+.rail-heading button {
+  color: var(--accent) !important;
+  font-size: 9px !important;
+}
+
+.follow-row {
+  gap: 9px !important;
+  padding: 8px 0 !important;
+}
+
+.follow-row button,
+.follow-button {
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+.follow-row button:hover,
+.follow-button:hover {
+  border-color: var(--accent) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+.trend {
+  padding: 9px 0 !important;
+}
+
+.trend strong {
+  font-size: 12px !important;
+}
+
+.rail-note {
+  margin-top: 8px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+/* ---------- Profile ---------- */
+.profile-header {
+  gap: 22px !important;
+  padding: 16px 0 28px !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+
+.profile-header > .avatar {
+  width: 88px !important;
+  height: 88px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 16px !important;
+  font-size: 25px !important;
+}
+
+.profile-name-row h1 {
+  font-size: 42px !important;
+  line-height: .95 !important;
+  letter-spacing: -0.055em !important;
+}
+
+.profile-name-row > div > span {
+  color: var(--accent) !important;
+  font-family: "SNEAKER", system-ui, sans-serif !important;
+  font-size: 10px !important;
+}
+
+.profile-bio {
+  max-width: 620px !important;
+  margin: 15px 0 18px !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+
+.profile-follow-button {
+  min-width: 94px !important;
+  height: 38px !important;
+  border: 1px solid var(--text) !important;
+  border-radius: 7px !important;
+  background: var(--text) !important;
+  color: var(--bg) !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+
+.profile-follow-button:hover {
+  border-color: var(--accent) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+.profile-stats {
+  gap: 24px !important;
+}
+
+.profile-stats strong {
+  font-size: 18px !important;
+}
+
+.profile-stats span {
+  font-size: 9px !important;
+}
+
+.profile-tabs {
+  border-bottom: 1px solid var(--line) !important;
+}
+
+.profile-tabs button {
+  min-width: 82px !important;
+  padding: 14px 13px !important;
+  color: var(--muted) !important;
+  font-size: 10px !important;
+}
+
+.profile-tabs button.active {
+  color: var(--text) !important;
+}
+
+.profile-tabs button.active::after {
+  right: 13px !important;
+  left: 13px !important;
+  height: 2px !important;
+  background: var(--accent) !important;
+}
+
+.profile-posts {
+  gap: 16px !important;
+  padding-top: 16px !important;
+  border-left: 0 !important;
+}
+
+.profile-post {
+  min-height: 360px !important;
+  height: 360px !important;
+  padding: 15px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+.profile-post:hover {
+  transform: translateY(-2px) !important;
+  border-color: var(--line-strong) !important;
+  background: var(--surface) !important;
+}
+
+/* Keep the existing media layout rules, but visually calm them down. */
+.profile-post-image-wrap {
+  border-radius: 8px !important;
+  background: var(--surface-2) !important;
+}
+
+.profile-post-bottom {
+  color: var(--muted) !important;
+}
+
+/* ---------- Menus ---------- */
+.post-menu {
+  border: 1px solid var(--line) !important;
+  border-radius: 8px !important;
+  background: var(--surface) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.10) !important;
+}
+
+:root[data-theme="dark"] .post-menu {
+  box-shadow: 0 12px 32px rgba(0,0,0,.35) !important;
+}
+
+/* ---------- Animations: subtle, purposeful ---------- */
+.main-column {
+  animation: qyvraSoftIn .28s ease both !important;
+}
+
+.right-rail {
+  animation: qyvraSoftIn .36s ease .03s both !important;
+}
+
+.post-card {
+  animation: qyvraPostIn .28s ease both !important;
+}
+
+@keyframes qyvraSoftIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes qyvraPostIn {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Kill the previous loud pulse animation. */
+.create-button,
+.sidebar .create-button,
+.profile-follow-button,
+.composer-add {
+  animation: none !important;
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 1080px) and (min-width: 761px) {
+  .side-nav {
+    gap: 0 !important;
+  }
+
+  .side-nav a {
+    padding-inline: 9px !important;
+    font-size: 10px !important;
+  }
+
+  .sidebar .create-button {
+    width: 82px !important;
+    right: 18px !important;
+    font-size: 9px !important;
+  }
+
+  .page-grid {
+    width: min(940px, calc(100% - 32px)) !important;
+    grid-template-columns: minmax(0, 1fr) 250px !important;
+    gap: 30px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    height: 62px !important;
+    padding: 0 14px !important;
+  }
+
+  .wordmark {
+    font-size: 20px !important;
+  }
+
+  .wordmark b {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .page-grid {
+    display: block !important;
+    width: 100% !important;
+    padding-top: 0 !important;
+  }
+
+  .main-column {
+    padding: 14px 14px 92px !important;
+  }
+
+  .right-rail {
+    display: none !important;
+  }
+
+  .search-trigger,
+  .plain-icon,
+  .profile-trigger {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+
+  .profile-trigger {
+    width: 38px !important;
+  }
+
+  .search-trigger .search-label,
+  .search-trigger kbd,
+  .profile-trigger > span:last-child {
+    display: none !important;
+  }
+
+  .feed-switcher {
+    margin-bottom: 9px !important;
+  }
+
+  .composer {
+    padding: 10px 0 !important;
+  }
+
+  .post-card {
+    padding: 18px 0 !important;
+    gap: 10px !important;
+  }
+
+  .post-text {
+    font-size: 14px !important;
+  }
+
+  .post-image,
+  .post-image img {
+    max-height: 500px !important;
+  }
+
+  .post-actions {
+    justify-content: space-between !important;
+  }
+
+  .post-action {
+    padding-inline: 5px !important;
+  }
+
+  .profile-header {
+    gap: 14px !important;
+    padding: 12px 0 22px !important;
+  }
+
+  .profile-header > .avatar {
+    width: 72px !important;
+    height: 72px !important;
+    border-radius: 14px !important;
+  }
+
+  .profile-name-row h1 {
+    font-size: 31px !important;
+  }
+
+  .profile-bio {
+    font-size: 12px !important;
+  }
+
+  .profile-posts {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .profile-post {
+    min-height: 320px !important;
+    height: 320px !important;
+  }
+
+  .mobile-nav {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 10px !important;
+    height: 58px !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 12px !important;
+    background: var(--surface) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,.10) !important;
+    backdrop-filter: blur(12px) !important;
+  }
+
+  .mobile-nav a.active {
+    color: var(--accent) !important;
+  }
+
+  .mobile-nav > button {
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: var(--accent) !important;
+    color: #fff !important;
+    box-shadow: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-column,
+  .right-rail,
+  .post-card {
+    animation: none !important;
+  }
+}
